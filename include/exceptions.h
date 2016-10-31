@@ -4,4 +4,11 @@
 class FatalException {
 };
 
+class ConfigError {
+	char* message;
+public:
+	ConfigError(char* msg);
+	void Print() const;
+};
+
 #endif

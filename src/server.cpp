@@ -5,11 +5,13 @@
 #include <unistd.h>
 #include "exceptions.h"
 #include "server.h"
-#include "constantValues.h"
 #include "SMTPsession.h"
 #include "string.h"
 
-Server::Server(int port_): port(port_)
+#define DEFAULT_BACKLOG 5
+
+Server::Server(int port_, char* conf_addr): listening_sock(-1), port(port_),
+	clients(NULL), config(conf_addr)
 {
 	address.sin_family = AF_INET;
 	address.sin_port = htons(port);
@@ -109,9 +111,25 @@ void Server::ListeningModeOn()
 	}
 }
 
+void Server::ConfigureServer()
+{
+	if (!config.GetConfigPath()) {
+		printf("Server can't be launched: specify path for configuration file with -c key\n");
+		throw FatalException();
+	}
+	if (!config.OpenConfig())
+		throw FatalException();
+	if (!config.InitializeBuffer())
+		throw FatalException();
+	config.ExtractInfoFromConfig();
+	config.CloseConfig();
+	config.PrintMailboxes();
+}
+
 void Server::Run()
 {
 	try {
+		ConfigureServer();
 		CreateListeningSocket();
 		ListeningModeOn();
 
@@ -119,7 +137,7 @@ void Server::Run()
 		printf("%s\n", s);
 	}
 	catch(FatalException e) {
-
+		printf("Fatal exception caught\n");
 	}
 	catch(...){
 		printf("Unknown error occured\n");
@@ -139,6 +157,8 @@ void Server::EmptyAllocatedMemory()
 Server::~Server()
 {
 	EmptyAllocatedMemory();
-	shutdown(listening_sock, 2);
-	close(listening_sock);
+	if (listening_sock != -1) {
+		shutdown(listening_sock, 2);
+		close(listening_sock);
+	}
 }

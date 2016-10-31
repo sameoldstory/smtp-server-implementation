@@ -3,21 +3,21 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "constantValues.h"
+#define DEFAULT_BUF_SIZE 1024
 
-SocketBuffer::SocketBuffer(int fd_): len(0), maxlen(DEFAULT_BUF_SIZE), fd(fd_)
+FileBuffer::FileBuffer(int fd_): len(0), maxlen(DEFAULT_BUF_SIZE), fd(fd_)
 {
 	data = new char [maxlen];
 }
 
-SocketBuffer::~SocketBuffer()
+FileBuffer::~FileBuffer()
 {
 	delete[] data;
 }
 
 //returns false if connection was closed, true otherwise
 
-bool SocketBuffer::Read()
+bool FileBuffer::Read()
 {
 	int portion = read(fd, data+len, maxlen-len);
 	if (portion == -1) {
@@ -33,7 +33,7 @@ bool SocketBuffer::Read()
 
 //returns NULL if \r\n isn't here
 
-char* SocketBuffer::ExtractUntilCRLF()
+char* FileBuffer::ExtractUntilCRLF()
 {
 	if (!len)
 		return NULL;
@@ -49,3 +49,43 @@ char* SocketBuffer::ExtractUntilCRLF()
 	}
 	return NULL;
 }
+
+char* FileBuffer::ExtractUntilEOL()
+{
+	if (!len)
+		return NULL;
+	for (int i = 0; i < len-1; i++) {
+		if (data[i] == '\n')  {
+			char* str = new char[i+1];
+			memcpy(str, data, i);
+			str[i] = '\0';
+			len -= i + 1;
+			memmove(data, data+i+1, len);
+			return str;
+		}
+	}
+	return NULL;
+}
+
+char* FileBuffer::ExtractWordFromLine(char* & line)
+{
+	int beg = 0, i = 0, len = strlen(line);
+	while (i <= len) {
+		if ((line[i] == ' ') || (line[i] == '\t') || (line[i] == '\0')) {
+			if (beg == i)
+				beg++;
+			else {
+				char* word = new char [i - beg + 1];
+				memcpy(word, line, i-beg);
+				word[i - beg] = '\0';
+				while ((line[i] == ' ') || (line[i] == '\t'))
+					i++;
+				memmove(line, line+i, len-i+1);
+				return word;
+			}
+		}
+		i++;
+	}
+	return NULL;
+}
+

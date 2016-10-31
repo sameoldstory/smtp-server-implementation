@@ -4,7 +4,7 @@
 
 int main(int argc, char** argv) {
 	CommandLineArgs cl_args(argc, argv);
-	Server serv(cl_args.GetPort());
+	Server serv(cl_args.GetPort(), cl_args.GetConfigLocation());
 	serv.Run();
 	return 0;
 }

@@ -7,13 +7,21 @@ struct sockaddr_in;
 
 class SMTPsession {
 	int fd;
+	bool auth;
 	sockaddr_in* client_addr;
-	SocketBuffer in_buf;
+	FileBuffer in_buf;
+	void ProcessCommand(char*);
+	void ProcessHelo(char*);
+	void ProcessMail(char*);
+	void ProcessRcpt(char*);
+	void ProcessData(char*);
+	void ProcessQuit(char*);
+	void ProcessRset(char*);
 	enum {
 		start
 	} state;
 public:
-	SMTPsession(int fd_, sockaddr_in* addr): fd(fd_), client_addr(addr),
+	SMTPsession(int fd_, sockaddr_in* addr): fd(fd_), auth(false), client_addr(addr),
 	 in_buf(fd_), state(start) {}
 	int GetSocketDesc() const {return fd;}
 	void Start() const;
