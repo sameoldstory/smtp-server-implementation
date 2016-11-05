@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 
-ConfigError::ConfigError(char* msg)
+ConfigError::ConfigError(const char* msg)
 {
 	int len = strlen(msg)+1;
  	message = new char[len];

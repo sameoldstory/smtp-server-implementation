@@ -25,12 +25,14 @@ struct MailboxList {
 class ServerConfiguration {
 	char* config_path;
 	int fd;
+	int port;
 	FileBuffer* buf;
 	char* server;
 	char* domain;
 	MailboxList* mailboxes;
 	MailboxList* CreateMailbox(char* name, char* opt_line);
 	void AddMailboxToList(MailboxList* m);
+	int ConvertStringToNumber(char* port_str);
 public:
 	ServerConfiguration(char* config_path_);
 	char* GetConfigPath() {return config_path;};
@@ -39,6 +41,7 @@ public:
 	void ExtractInfoFromConfig();
 	bool CloseConfig();
 	void PrintMailboxes();
+	int GetPort() {return port;}
 	~ServerConfiguration();
 };
 

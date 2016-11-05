@@ -6,6 +6,15 @@
 
 class SMTPsessionList;
 
+#if 0
+class Client {
+	int fd;
+	sockaddr_in* client_addr;
+	FileBuffer in_buf;
+public:
+};
+#endif
+
 class Server {
 	int listening_sock;
 	int port;
@@ -19,7 +28,7 @@ class Server {
 	void DeleteClient(int);
 	void EmptyAllocatedMemory();
 public:
-	Server(int port_, char* conf_addr);
+	Server(char* config_path);
 	void Run();
 	~Server();
 };

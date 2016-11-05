@@ -7,11 +7,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 
 ServerConfiguration::ServerConfiguration(char* config_path_):
-	config_path(config_path_), fd(-1), buf(NULL), server(NULL), domain(NULL),
+	fd(-1), port(-1), buf(NULL), server(NULL), domain(NULL),
 	mailboxes(NULL)
-{}
+{
+	config_path = strdup(config_path_);
+}
 
 ServerConfiguration::~ServerConfiguration()
 {
@@ -22,13 +25,29 @@ ServerConfiguration::~ServerConfiguration()
 		mailboxes = tmp;
 	}
 	if (config_path)
-		delete[] config_path;
+		free(config_path);
 	if (server)
 		delete[] server;
 	if (domain)
 		delete[] domain;
 	if (buf)
 		delete buf;
+}
+
+int ServerConfiguration::ConvertStringToNumber(char* port_str)
+{
+	int len = strlen(port_str);
+	if (len == 0)
+		throw ConfigError("Port was not specified");
+	bool digits_only = true;
+	for (int i = 0; i < len; i++)
+		if ((port_str[i] > '9') || (port_str[i] < '0'))
+			digits_only = false;
+	if (digits_only == true)
+		return atoi(port_str);
+	else
+		throw ConfigError("Incorrect symbols were used to specify port");
+	throw ConfigError("Port was not specified");
 }
 
 bool ServerConfiguration::OpenConfig()
@@ -138,7 +157,11 @@ void ServerConfiguration::ExtractInfoFromConfig()
 			if ((line[0] == '#') || (line[0] == '\0')) {}
 			else {
 				char* word = buf->ExtractWordFromLine(line);
-				if (word && !strcmp(word, "server_name")) {
+				if (word && !strcmp(word, "port")) {
+					delete[] word;
+					word = buf->ExtractWordFromLine(line);
+					port = ConvertStringToNumber(word);
+				} else if (word && !strcmp(word, "server_name")) {
 					delete[] word;
 					word = buf->ExtractWordFromLine(line);
 					server = word;
@@ -150,7 +173,7 @@ void ServerConfiguration::ExtractInfoFromConfig()
 					delete[] word;
 					mailboxes = true;
 				} else if (word && !strcmp(word, "mailboxes_end")) {
-					delete[	] word;
+					delete[] word;
 					mailboxes = false;
 				} else if (mailboxes && word) {
 					try {

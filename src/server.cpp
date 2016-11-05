@@ -10,16 +10,16 @@
 
 #define DEFAULT_BACKLOG 5
 
-Server::Server(int port_, char* conf_addr): listening_sock(-1), port(port_),
-	clients(NULL), config(conf_addr)
+Server::Server(char* conf_path): listening_sock(-1), port(-1),
+	clients(NULL), config(conf_path)
+{}
+
+void Server::CreateListeningSocket()
 {
 	address.sin_family = AF_INET;
 	address.sin_port = htons(port);
 	address.sin_addr.s_addr = INADDR_ANY;
-}
 
-void Server::CreateListeningSocket()
-{
 	listening_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (listening_sock == -1) {
 		perror("socket");
@@ -87,7 +87,6 @@ void Server::ListeningModeOn()
 			perror("select");
 			throw FatalException();
 		}
-		// int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 		if (FD_ISSET(listening_sock, &readfds)) {
 			sockaddr_in* cl_addr = new sockaddr_in;
 			socklen_t cl_addrlen = INET_ADDRSTRLEN;
@@ -123,13 +122,15 @@ void Server::ConfigureServer()
 		throw FatalException();
 	config.ExtractInfoFromConfig();
 	config.CloseConfig();
-	config.PrintMailboxes();
+	//config.PrintMailboxes();
 }
 
 void Server::Run()
 {
 	try {
 		ConfigureServer();
+		port = config.GetPort();
+		printf("%d\n", port);
 		CreateListeningSocket();
 		ListeningModeOn();
 
