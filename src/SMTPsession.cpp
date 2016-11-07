@@ -7,22 +7,19 @@
 
 #define SMTP_GREETING "220 my.mailserver.ru\r\n"
 #define MIN_CMD_LEN 4
-
+#if 0
 void SMTPsession::Start() const
 {
 	write(fd, SMTP_GREETING, strlen(SMTP_GREETING));
 }
 
-SMTPsession::~SMTPsession()
-{
-	delete client_addr;
-}
 
 char* SMTPsession::GetIpString(char* buf) const
 {
 	inet_ntop(AF_INET, &(client_addr->sin_addr.s_addr), buf, INET_ADDRSTRLEN);
 	return buf;
 }
+
 
 //false if connection was closed by client
 // this function should delete str afterwards
@@ -40,6 +37,12 @@ bool SMTPsession::Resume()
 		str = in_buf.ExtractUntilCRLF();
 	}
 	return true;
+}
+#endif
+
+void SMTPsession::HandleInput(int portion, char* buf)
+{
+	in_buf.EatData(portion, buf);
 }
 
 void SMTPsession::ProcessCommand(char* str)

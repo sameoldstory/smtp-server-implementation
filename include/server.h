@@ -3,28 +3,34 @@
 
 #include <arpa/inet.h>
 #include "serverConfiguration.h"
+#include "SMTPsession.h"
 
-class SMTPsessionList;
+#define BUF_SIZE 1024
 
-#if 0
 class Client {
 	int fd;
-	sockaddr_in* client_addr;
-	FileBuffer in_buf;
+	sockaddr_in* cl_addr;
+	char buf [BUF_SIZE];
+	SMTPsession smtp;
 public:
+	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf):
+		fd(fd_), cl_addr(cl_addr_), smtp(sizebuf) {};
+	void ReadFromSocket();
+	int GetSocketDesc() {return fd;}
+	~Client() {delete cl_addr;}
 };
-#endif
+
 
 class Server {
 	int listening_sock;
 	int port;
 	sockaddr_in address;
-	SMTPsessionList* clients;
+	Client** clients_array;
 	ServerConfiguration config;
 	void ConfigureServer();
 	void CreateListeningSocket();
-	void ListeningModeOn();
-	void AddClient(int, sockaddr_in*);
+	void MainLoop();
+	void AddClient();
 	void DeleteClient(int);
 	void EmptyAllocatedMemory();
 public:

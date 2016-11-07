@@ -1,7 +1,7 @@
 #ifndef SERVER_CONFIGURATION_H
 #define SERVER_CONFIGURATION_H
 
-class FileBuffer;
+#include "buffer.h"
 
 enum mail_option {forward, deliver, trap};
 
@@ -26,7 +26,7 @@ class ServerConfiguration {
 	char* config_path;
 	int fd;
 	int port;
-	FileBuffer* buf;
+	ParseBuffer buf;
 	char* server;
 	char* domain;
 	MailboxList* mailboxes;
@@ -37,10 +37,10 @@ public:
 	ServerConfiguration(char* config_path_);
 	char* GetConfigPath() {return config_path;};
 	bool OpenConfig();
-	bool InitializeBuffer();
 	void ExtractInfoFromConfig();
 	bool CloseConfig();
 	void PrintMailboxes();
+	void PrintEverything();
 	int GetPort() {return port;}
 	~ServerConfiguration();
 };

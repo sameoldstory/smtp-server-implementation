@@ -3,37 +3,33 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define DEFAULT_BUF_SIZE 1024
-
-FileBuffer::FileBuffer(int fd_): len(0), maxlen(DEFAULT_BUF_SIZE), fd(fd_)
+ParseBuffer::ParseBuffer(int maxlen_):len(0), maxlen(maxlen_)
 {
 	data = new char [maxlen];
 }
 
-FileBuffer::~FileBuffer()
+void ParseBuffer::PrintData()
 {
-	delete[] data;
+	data[len] = '\0';
+	printf("%s\n", data);
 }
 
-//returns false if connection was closed, true otherwise
-
-bool FileBuffer::Read()
+void ParseBuffer::EatData(int portion, char* buf)
 {
-	int portion = read(fd, data+len, maxlen-len);
-	if (portion == -1) {
-		perror("read");
-		//probably need some error handling here
-	} else if (portion == 0) {
-		return false;
-	} else {
-		len += portion;
+	if (len+portion > maxlen) {
+		maxlen += maxlen;
+		char* tmp = new char[maxlen];
+		memcpy(tmp, data, len);
+		delete[] data;
+		data = tmp;
 	}
-	return true;
+	memcpy(data+len, buf, portion);
+	len = len + portion;
 }
 
 //returns NULL if \r\n isn't here
 
-char* FileBuffer::ExtractUntilCRLF()
+char* ParseBuffer::ExtractUntilCRLF()
 {
 	if (!len)
 		return NULL;
@@ -50,7 +46,7 @@ char* FileBuffer::ExtractUntilCRLF()
 	return NULL;
 }
 
-char* FileBuffer::ExtractUntilEOL()
+char* ParseBuffer::ExtractUntilEOL()
 {
 	if (!len)
 		return NULL;
@@ -67,7 +63,7 @@ char* FileBuffer::ExtractUntilEOL()
 	return NULL;
 }
 
-char* FileBuffer::ExtractWordFromLine(char* & line)
+char* ParseBuffer::ExtractWordFromLine(char* & line)
 {
 	int beg = 0, i = 0, len = strlen(line);
 	while (i <= len) {

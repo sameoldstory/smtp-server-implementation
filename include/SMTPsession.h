@@ -6,10 +6,8 @@
 struct sockaddr_in;
 
 class SMTPsession {
-	int fd;
 	bool auth;
-	sockaddr_in* client_addr;
-	FileBuffer in_buf;
+	ParseBuffer in_buf;
 	void ProcessCommand(char*);
 	void ProcessHelo(char*);
 	void ProcessMail(char*);
@@ -21,20 +19,12 @@ class SMTPsession {
 		start
 	} state;
 public:
-	SMTPsession(int fd_, sockaddr_in* addr): fd(fd_), auth(false), client_addr(addr),
-	 in_buf(fd_), state(start) {}
-	int GetSocketDesc() const {return fd;}
-	void Start() const;
+	SMTPsession(int buf_size): auth(false),
+	 in_buf(buf_size), state(start) {}
+	//void Start() const;
 	bool Resume();
-	char* GetIpString(char* buf) const;
-	~SMTPsession();
-};
-
-struct SMTPsessionList {
-	SMTPsession session;
-	SMTPsessionList* next;
-	SMTPsessionList(int fd, sockaddr_in* addr, SMTPsessionList* next_ = 0):
-	 session(fd, addr), next(next_) {};
+	void HandleInput(int portion, char* buf);
+	~SMTPsession() {}
 };
 
 #endif

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdlib.h>
 #include <sys/select.h>
 #include <unistd.h>
 #include "exceptions.h"
@@ -9,10 +10,28 @@
 #include "string.h"
 
 #define DEFAULT_BACKLOG 5
+#define MAX_SESSIONS 4
+
+void Client::ReadFromSocket()
+{
+	int portion = read(fd, &(buf[0]), BUF_SIZE);
+	if (portion == -1) {
+		perror("read");
+		//probably need some error handling here
+	} else if (portion == 0) {
+		// here we need to close session properly
+	} else {
+		smtp.HandleInput(portion, &(buf[0]));
+	}
+}
 
 Server::Server(char* conf_path): listening_sock(-1), port(-1),
-	clients(NULL), config(conf_path)
-{}
+	clients_array(NULL), config(conf_path)
+{
+	clients_array = new Client*[MAX_SESSIONS];
+	for (int i = 0; i < MAX_SESSIONS; i++)
+		clients_array[i] = NULL;
+}
 
 void Server::CreateListeningSocket()
 {
@@ -23,87 +42,91 @@ void Server::CreateListeningSocket()
 	listening_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (listening_sock == -1) {
 		perror("socket");
-		throw FatalException();
+		exit(1);
 	}
 	int opt = 1;
 	setsockopt(listening_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	if (bind(listening_sock, (sockaddr*) &address, sizeof(address))) {
 		perror("bind");
-		throw FatalException();
+		exit(1);
 	}
 	if (listen(listening_sock, DEFAULT_BACKLOG) == -1) {
 		perror("listen");
-		throw FatalException();
+		//throw FatalException();
+		exit(1);
 	}
 }
 
-void Server::AddClient(int new_fd, sockaddr_in* addr)
+void Server::AddClient()
 {
-	if (!clients) {
-		clients = new SMTPsessionList(new_fd, addr);
-	} else {
-		SMTPsessionList* tmp = new SMTPsessionList(new_fd, addr, clients);
-		clients = tmp;
+	sockaddr_in* cl_addr = new sockaddr_in;
+	socklen_t cl_addrlen = INET_ADDRSTRLEN;
+	int cl_fd = accept(listening_sock, (sockaddr*) cl_addr, &cl_addrlen);
+	if (cl_fd == -1) {
+		perror("accept");
+		// some error handling is needed here
+		return;
 	}
-	clients->session.Start();
+	int i;
+	for (i = 0; clients_array[i]; i++)
+		{}
+	if (i == MAX_SESSIONS) {
+		// handle situation when number of sessions is exceeded
+	} else {
+		clients_array[i] = new Client(cl_fd, cl_addr, BUF_SIZE);
+		//initialize client
+	}
 }
 
 void Server::DeleteClient(int fd)
 {
-	SMTPsessionList* tmp, *prev = NULL;
-	for (tmp = clients; tmp; tmp = tmp->next) {
-		if (fd == tmp->session.GetSocketDesc()) {
-			if (prev == NULL)
-				clients = tmp->next;
-			else
-				prev->next = tmp->next;
-			delete tmp;
+	for (int i = 0; i < MAX_SESSIONS; i++) {
+		if (fd == clients_array[i]->GetSocketDesc()) {
+			delete clients_array[i];
+			clients_array[i] = NULL;
 			if (shutdown(fd, 2) == -1)
 				perror("shutdown");
 			close(fd);
 			return;
 		}
-		prev = tmp;
 	}
 }
 
-void Server::ListeningModeOn()
+void Server::MainLoop()
 {
 	for(;;) {
 		fd_set readfds;
 		int max_d = listening_sock;
 		FD_ZERO(&readfds);
 		FD_SET(listening_sock, &readfds);
-		SMTPsessionList* tmp;
 		int fd;
-		for (tmp = clients; tmp; tmp = tmp->next) {
-			fd = tmp->session.GetSocketDesc();
-			FD_SET(fd, &readfds);
-			if (fd > max_d)
-				max_d = fd;
+		for (int i = 0; i < MAX_SESSIONS; i++) {
+			if (clients_array[i]) {
+				fd = clients_array[i]->GetSocketDesc();
+				FD_SET(fd, &readfds);
+				if (fd + 1 > max_d)
+					max_d = fd + 1;
+			}
 		}
 		int res = select(max_d+1, &readfds, NULL, NULL, NULL);
 		if (res < 1) {
 			perror("select");
 			throw FatalException();
 		}
-		if (FD_ISSET(listening_sock, &readfds)) {
-			sockaddr_in* cl_addr = new sockaddr_in;
-			socklen_t cl_addrlen = INET_ADDRSTRLEN;
-			int new_fd = accept(listening_sock, (sockaddr*) cl_addr, &cl_addrlen);
-			if (new_fd == -1) {
-				perror("accept");
-				// some error handling is needed here
-			} else {
-				AddClient(new_fd, cl_addr);
-			}
-		}
-		for (tmp = clients; tmp; tmp = tmp->next) {
-			fd = tmp->session.GetSocketDesc();
-			if (FD_ISSET(fd, &readfds)) {
+		if (FD_ISSET(listening_sock, &readfds))
+			AddClient();
+		for (int i = 0; i < MAX_SESSIONS; i++) {
+			if (clients_array[i]) {
+				fd = clients_array[i]->GetSocketDesc();
+				if (FD_ISSET(fd, &readfds)) {
+
+					clients_array[i]->ReadFromSocket();
+				/*
 				if (false == tmp->session.Resume()) {
 					// disconnection; get rid of the client
 					DeleteClient(fd);
+				}
+				*/
 				}
 			}
 		}
@@ -114,25 +137,24 @@ void Server::ConfigureServer()
 {
 	if (!config.GetConfigPath()) {
 		printf("Server can't be launched: specify path for configuration file with -c key\n");
-		throw FatalException();
+		exit(1);
 	}
-	if (!config.OpenConfig())
-		throw FatalException();
-	if (!config.InitializeBuffer())
-		throw FatalException();
+	if (!config.OpenConfig()) {
+		printf("Config file can not be opened\n");
+		exit(1);
+	}
 	config.ExtractInfoFromConfig();
 	config.CloseConfig();
-	//config.PrintMailboxes();
 }
 
 void Server::Run()
 {
 	try {
 		ConfigureServer();
+		config.PrintEverything();
 		port = config.GetPort();
-		printf("%d\n", port);
 		CreateListeningSocket();
-		ListeningModeOn();
+		MainLoop();
 
 	} catch(const char* s) {
 		printf("%s\n", s);
@@ -147,12 +169,11 @@ void Server::Run()
 
 void Server::EmptyAllocatedMemory()
 {
-	SMTPsessionList* tmp;
-	while(clients) {
-		tmp = clients->next;
-		delete clients;
-		clients = tmp;
+	for (int i = 0; i < MAX_SESSIONS; i++) {
+		if (clients_array[i])
+			delete clients_array[i];
 	}
+	delete[] clients_array;
 }
 
 Server::~Server()
