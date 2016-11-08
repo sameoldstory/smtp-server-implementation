@@ -40,9 +40,10 @@ bool SMTPsession::Resume()
 }
 #endif
 
-void SMTPsession::HandleInput(int portion, char* buf)
+bool SMTPsession::HandleInput(int portion, char* buf)
 {
 	in_buf.EatData(portion, buf);
+	return false;
 }
 
 void SMTPsession::ProcessCommand(char* str)

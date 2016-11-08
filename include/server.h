@@ -5,16 +5,17 @@
 #include "serverConfiguration.h"
 #include "SMTPsession.h"
 
-#define BUF_SIZE 1024
+#define BUF_SIZE_SERV 1024
 
 class Client {
 	int fd;
 	sockaddr_in* cl_addr;
-	char buf [BUF_SIZE];
+	char buf [BUF_SIZE_SERV];
+	bool need_to_write;
 	SMTPsession smtp;
 public:
 	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf):
-		fd(fd_), cl_addr(cl_addr_), smtp(sizebuf) {};
+		fd(fd_), cl_addr(cl_addr_), need_to_write(false), smtp(sizebuf) {};
 	void ReadFromSocket();
 	int GetSocketDesc() {return fd;}
 	~Client() {delete cl_addr;}

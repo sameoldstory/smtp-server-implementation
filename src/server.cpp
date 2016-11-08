@@ -20,8 +20,13 @@ void Client::ReadFromSocket()
 		//probably need some error handling here
 	} else if (portion == 0) {
 		// here we need to close session properly
+		DeleteClient(fd);
+		// probably we should tell SMTPsession, that disconnection happened
 	} else {
-		smtp.HandleInput(portion, &(buf[0]));
+		// if HandleInput returns true, we should raise flag need_to_write
+		if (smtp.HandleInput(portion, &(buf[0])))
+			need_to_write = true;
+
 	}
 }
 
@@ -95,23 +100,25 @@ void Server::DeleteClient(int fd)
 void Server::MainLoop()
 {
 	for(;;) {
-		fd_set readfds;
+		fd_set readfds, writefds;
 		int max_d = listening_sock;
 		FD_ZERO(&readfds);
+		FD_ZERO(&writefds);
 		FD_SET(listening_sock, &readfds);
 		int fd;
 		for (int i = 0; i < MAX_SESSIONS; i++) {
 			if (clients_array[i]) {
 				fd = clients_array[i]->GetSocketDesc();
 				FD_SET(fd, &readfds);
+				FD_SET(fd, &writefds);
 				if (fd + 1 > max_d)
 					max_d = fd + 1;
 			}
 		}
-		int res = select(max_d+1, &readfds, NULL, NULL, NULL);
+		int res = select(max_d+1, &readfds, &writefds, NULL, NULL);
 		if (res < 1) {
 			perror("select");
-			throw FatalException();
+			exit(1);
 		}
 		if (FD_ISSET(listening_sock, &readfds))
 			AddClient();
@@ -127,6 +134,9 @@ void Server::MainLoop()
 					DeleteClient(fd);
 				}
 				*/
+				}
+				if (FD_ISSET(fd, &writefds)) {
+
 				}
 			}
 		}
