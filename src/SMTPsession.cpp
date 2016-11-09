@@ -40,6 +40,17 @@ bool SMTPsession::Resume()
 }
 #endif
 
+char* SMTPsession::GetMessage()
+{	
+	//returned message should be string that ends with /0 
+	return "here will be message to client";
+}
+
+void SMTPsession::EndSession()
+{
+	// 
+}
+
 bool SMTPsession::HandleInput(int portion, char* buf)
 {
 	in_buf.EatData(portion, buf);

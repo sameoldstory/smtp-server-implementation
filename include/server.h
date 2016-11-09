@@ -16,7 +16,10 @@ class Client {
 public:
 	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf):
 		fd(fd_), cl_addr(cl_addr_), need_to_write(false), smtp(sizebuf) {};
-	void ReadFromSocket();
+	short int ProcessReadOperation();
+	short int ProcessWriteOperation();
+	bool NeedsToWrite() {return need_to_write;}
+	void FulfillNeedToWrite() {need_to_write = false;}
 	int GetSocketDesc() {return fd;}
 	~Client() {delete cl_addr;}
 };
