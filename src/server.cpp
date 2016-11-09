@@ -12,22 +12,26 @@
 #define DEFAULT_BACKLOG 5
 #define MAX_SESSIONS 4
 
-void Client::ReadFromSocket()
-{
-	int portion = read(fd, &(buf[0]), BUF_SIZE);
-	if (portion == -1) {
-		perror("read");
-		//probably need some error handling here
-	} else if (portion == 0) {
-		// here we need to close session properly
-		DeleteClient(fd);
-		// probably we should tell SMTPsession, that disconnection happened
-	} else {
-		// if HandleInput returns true, we should raise flag need_to_write
-		if (smtp.HandleInput(portion, &(buf[0])))
-			need_to_write = true;
+//return values are just like in read system call
 
+short int Client::ProcessReadOperation()
+{
+	int portion = read(fd, &(buf[0]), BUF_SIZE_SERV);
+	if (portion == -1) 
+		return -1;
+	if (portion == 0) {
+		smtp.EndSession();
+		return 0;
 	}
+	if (smtp.HandleInput(portion, &(buf[0])))
+		need_to_write = true;
+	return 1; 
+}
+
+short int Client::ProcessWriteOperation()
+{
+	char* message = strdup(smtp.GetMessage());
+	return write(fd, message, strlen(message));
 }
 
 Server::Server(char* conf_path): listening_sock(-1), port(-1),
@@ -57,7 +61,6 @@ void Server::CreateListeningSocket()
 	}
 	if (listen(listening_sock, DEFAULT_BACKLOG) == -1) {
 		perror("listen");
-		//throw FatalException();
 		exit(1);
 	}
 }
@@ -78,7 +81,7 @@ void Server::AddClient()
 	if (i == MAX_SESSIONS) {
 		// handle situation when number of sessions is exceeded
 	} else {
-		clients_array[i] = new Client(cl_fd, cl_addr, BUF_SIZE);
+		clients_array[i] = new Client(cl_fd, cl_addr, BUF_SIZE_SERV);
 		//initialize client
 	}
 }
@@ -122,22 +125,20 @@ void Server::MainLoop()
 		}
 		if (FD_ISSET(listening_sock, &readfds))
 			AddClient();
-		for (int i = 0; i < MAX_SESSIONS; i++) {
-			if (clients_array[i]) {
-				fd = clients_array[i]->GetSocketDesc();
-				if (FD_ISSET(fd, &readfds)) {
-
-					clients_array[i]->ReadFromSocket();
-				/*
-				if (false == tmp->session.Resume()) {
-					// disconnection; get rid of the client
+		for (int i = 0; i < MAX_SESSIONS && clients_array[i]; i++) {
+			fd = clients_array[i]->GetSocketDesc();
+			// if we need to write something, that means we do not read from socket
+			if (FD_ISSET(fd, &readfds) && !clients_array[i]->NeedsToWrite()) {
+				int res = clients_array[i]->ProcessReadOperation();
+				if (res == 0) 
 					DeleteClient(fd);
-				}
-				*/
-				}
-				if (FD_ISSET(fd, &writefds)) {
-
-				}
+				else if (res == -1)
+					perror("read");
+			}
+			if (FD_ISSET(fd, &writefds) && clients_array[i]->NeedsToWrite()) {
+				clients_array[i]->FulfillNeedToWrite();
+				if(clients_array[i]->ProcessWriteOperation() == -1)
+					perror("write");
 			}
 		}
 	}

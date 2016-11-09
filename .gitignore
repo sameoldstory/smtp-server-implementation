@@ -3,3 +3,6 @@ obj/
 smtp
 deps.mk
 *.txt
+*.dSYM
+*.DS_Store
+

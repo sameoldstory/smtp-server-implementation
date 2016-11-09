@@ -22,8 +22,10 @@ public:
 	SMTPsession(int buf_size): auth(false),
 	 in_buf(buf_size), state(start) {}
 	//void Start() const;
-	bool Resume();
-	void HandleInput(int portion, char* buf);
+	//bool Resume();
+	char* GetMessage();
+	void EndSession();
+	bool HandleInput(int portion, char* buf);
 	~SMTPsession() {}
 };
 
