@@ -100,6 +100,9 @@ void Server::DeleteClient(int fd)
 	}
 }
 
+//mainloop to be optimized later
+//loop initializing sets of descriptors is ubiqitous
+
 void Server::MainLoop()
 {
 	for(;;) {
@@ -136,9 +139,10 @@ void Server::MainLoop()
 					perror("read");
 			}
 			if (FD_ISSET(fd, &writefds) && clients_array[i]->NeedsToWrite()) {
-				clients_array[i]->FulfillNeedToWrite();
 				if(clients_array[i]->ProcessWriteOperation() == -1)
 					perror("write");
+				else
+					clients_array[i]->FulfillNeedToWrite();
 			}
 		}
 	}

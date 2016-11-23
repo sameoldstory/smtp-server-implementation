@@ -3,8 +3,6 @@
 
 #include "buffer.h"
 
-struct sockaddr_in;
-
 class SMTPsession {
 	bool auth;
 	ParseBuffer in_buf;
@@ -15,6 +13,8 @@ class SMTPsession {
 	void ProcessData(char*);
 	void ProcessQuit(char*);
 	void ProcessRset(char*);
+	// name of state corresponds to the last received command
+	// start state is the state before any command
 	enum {
 		start
 	} state;

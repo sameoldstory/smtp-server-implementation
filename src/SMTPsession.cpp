@@ -2,24 +2,17 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
-#include <arpa/inet.h>
 
 #define SMTP_GREETING "220 my.mailserver.ru\r\n"
 #define MIN_CMD_LEN 4
+
 #if 0
 void SMTPsession::Start() const
 {
 	write(fd, SMTP_GREETING, strlen(SMTP_GREETING));
 }
-
-
-char* SMTPsession::GetIpString(char* buf) const
-{
-	inet_ntop(AF_INET, &(client_addr->sin_addr.s_addr), buf, INET_ADDRSTRLEN);
-	return buf;
-}
-
 
 //false if connection was closed by client
 // this function should delete str afterwards
@@ -43,7 +36,8 @@ bool SMTPsession::Resume()
 char* SMTPsession::GetMessage()
 {	
 	//returned message should be string that ends with /0 
-	return "here will be message to client";
+	//return "here will be message to client";
+	return NULL;
 }
 
 void SMTPsession::EndSession()
@@ -52,9 +46,18 @@ void SMTPsession::EndSession()
 }
 
 bool SMTPsession::HandleInput(int portion, char* buf)
-{
+{	
+	bool need_to_write = false;
 	in_buf.EatData(portion, buf);
-	return false;
+	char* str = strdup(in_buf.ExtractUntilCRLF());
+	while(str) {
+		//printf("%s\n", str);
+		ProcessCommand(str);
+		// we need to take care of str
+		free(str);
+		str = in_buf.ExtractUntilCRLF();
+	}
+	return need_to_write;
 }
 
 void SMTPsession::ProcessCommand(char* str)

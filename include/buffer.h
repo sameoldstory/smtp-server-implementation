@@ -7,6 +7,9 @@ class ParseBuffer {
 	char* data;
 	int len;
 	int maxlen;
+	char* untileol;
+	char* untilcrlf;
+	char* word;
 public:
 	ParseBuffer(int maxlen_);
 	char* ExtractWordFromLine(char* & line);
@@ -14,7 +17,7 @@ public:
 	char* ExtractUntilEOL();
 	void EatData(int portion, char* buf);
 	void PrintData();
-	~ParseBuffer() {delete[] data;}
+	~ParseBuffer();
 };
 
 #endif
