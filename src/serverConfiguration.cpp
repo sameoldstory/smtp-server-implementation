@@ -102,45 +102,44 @@ void ServerConfiguration::PrintEverything()
 
 MailboxList* ServerConfiguration::CreateMailbox(char* name, char* opt_line)
 {
-	char** params  = NULL, * word = buf.ExtractWordFromLine(opt_line);
+	char** params  = NULL, *tmp_word;
 	mail_option opt;
 	int numb_opt = 0;
 	char tmp_buf[1024];
-	if (!word) {
+	tmp_word = buf.ExtractWordFromLine(opt_line);
+	if (!tmp_word) {
 		sprintf(tmp_buf, "Option [deliver/forward/trap] wasn't specified for mailbox: %s",
 		name);
 		delete[] name;
 		throw ConfigError(tmp_buf);
 	} else {
-		if (!strcmp("deliver", word)) {
+		if (!strcmp("deliver", tmp_word)) {
 			opt = deliver;
-		} else if (!strcmp("trap", word)) {
+		} else if (!strcmp("trap", tmp_word)) {
 			opt = trap;
-		} else if (!strcmp("forward", word)) {
+		} else if (!strcmp("forward", tmp_word)) {
 			opt = forward;
 		} else {
-			sprintf(tmp_buf, "Unknown option \'%s\' for mailbox %s", word, name);
+			sprintf(tmp_buf, "Unknown option \'%s\' for mailbox %s", tmp_word, name);
 			delete[] name;
-			delete[] word;
 			throw ConfigError(tmp_buf);
 		}
-		delete[] word;
 	}
-	word = buf.ExtractWordFromLine(opt_line);
-	while (word) {
+	tmp_word = buf.ExtractWordFromLine(opt_line);
+	while (tmp_word) {
 		if (numb_opt == 0) {
 			params  = new char*[1];
-			params [0] = word;
+			params[0] = strdup(tmp_word);
 		} else {
 			char** tmp = new char*[numb_opt+1];
 			for (int i = 0; i < numb_opt; i++)
-				tmp[i] = params [i];
-			tmp[numb_opt] = word;
-			delete[] params ;
+				tmp[i] = params[i];
+			tmp[numb_opt] = strdup(tmp_word);
+			delete[] params;
 			params  = tmp;
 		}
 		numb_opt++;
-		word = buf.ExtractWordFromLine(opt_line);
+		tmp_word = buf.ExtractWordFromLine(opt_line);
 	}
 	MailboxList* new_box = new MailboxList(name, opt, params, numb_opt);
 	return new_box;
@@ -160,33 +159,26 @@ void ServerConfiguration::ExtractInfoFromConfig()
 			else {
 				char* word = buf.ExtractWordFromLine(line);
 				if (word && !strcmp(word, "port")) {
-					delete[] word;
 					word = buf.ExtractWordFromLine(line);
 					port = ConvertStringToNumber(word);
 				} else if (word && !strcmp(word, "server_name")) {
-					delete[] word;
 					word = buf.ExtractWordFromLine(line);
-					server = word;
+					server = strdup(word);
 				} else if (word && !strcmp(word, "domain_name")) {
-					delete[] word;
 					word = buf.ExtractWordFromLine(line);
-					domain = word;
+					domain = strdup(word);
 				} else if (word && !strcmp(word, "mailboxes_start")) {
-					delete[] word;
 					mailboxes = true;
 				} else if (word && !strcmp(word, "mailboxes_end")) {
-					delete[] word;
 					mailboxes = false;
 				} else if (mailboxes && word) {
 					try {
-						AddMailboxToList(CreateMailbox(word, line));
+						AddMailboxToList(CreateMailbox(strdup(word), line));
 					} catch (ConfigError e) {
 						e.Print();
 					}
 				}
 			}
-			if (line)
-				delete[] line;
 			line = buf.ExtractUntilEOL();
 		}
 		res = read(fd, &(tmp_buf[0]), CONFIG_BUF_SIZE);
@@ -202,7 +194,7 @@ Mailbox::~Mailbox()
 	if (name)
 		delete[] name;
 	if (params) {
-		for (int i = 0; i <= param_numb; i++)
+		for (int i = 0; i < param_numb; i++)
 			delete[] params[i];
 	}
 	delete[] params;
