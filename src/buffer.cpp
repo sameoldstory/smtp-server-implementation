@@ -97,10 +97,8 @@ char* ParseBuffer::ExtractWordFromLine(char* & line)
 					word = NULL;
 				}
 				word = new char [i - beg + 1];
-				memcpy(word, line, i-beg);
+				memcpy(word, line+beg, i-beg);
 				word[i - beg] = '\0';
-				while ((line[i] == ' ') || (line[i] == '\t'))
-					i++;
 				memmove(line, line+i, len-i+1);
 				return word;
 			}
