@@ -3,30 +3,42 @@
 
 #include "buffer.h"
 
+class ServerConfiguration;
+
 class SMTPsession {
-	bool auth;
 	ParseBuffer in_buf;
+	ServerConfiguration* config;
+	bool need_to_write;
+	char* msg_for_client;
+	char* client_domain;
+	char* mail_from;
+	char** recipients;
+	int recipients_count;
+	bool CorrectMailFromArg(char*);
+	char* ExtractArgFromAngleBrackets(char*);
+	void AddRecipient(char*);
 	void ProcessCommand(char*);
-	void ProcessHelo(char*);
+	void ProcessEhlo(char*);
 	void ProcessMail(char*);
 	void ProcessRcpt(char*);
 	void ProcessData(char*);
 	void ProcessQuit(char*);
-	void ProcessRset(char*);
+	void ProcessEmail();
+	void ProcessUnknownCmd(char*);
 	// name of state corresponds to the last received command
 	// start state is the state before any command
 	enum {
-		start
+		start, helo, mail, rcpt, datastart, datafinish, quit
 	} state;
 public:
-	SMTPsession(int buf_size): auth(false),
-	 in_buf(buf_size), state(start) {}
+	SMTPsession(int buf_size, ServerConfiguration* config_);
 	//void Start() const;
 	//bool Resume();
 	char* GetMessage();
+	bool LastMessage() {if (state == quit) return true; else return false;}
 	void EndSession();
 	bool HandleInput(int portion, char* buf);
-	~SMTPsession() {}
+	~SMTPsession();
 };
 
 #endif

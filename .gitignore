@@ -5,4 +5,5 @@ deps.mk
 *.txt
 *.dSYM
 *.DS_Store
+*.tgz
 

@@ -189,6 +189,17 @@ void ServerConfiguration::ExtractInfoFromConfig()
 	}
 }
 
+bool ServerConfiguration::MailboxLocal(char* box_name)
+{
+	MailboxList* tmp = mailboxes;
+	while(tmp) {
+		if (!strcmp(tmp->box.name, box_name))
+			return true;
+		tmp = tmp->next;
+	}
+	return false;
+}
+
 Mailbox::~Mailbox()
 {
 	if (name)

@@ -17,12 +17,17 @@
 short int Client::ProcessReadOperation()
 {
 	int portion = read(fd, &(buf[0]), BUF_SIZE_SERV);
-	if (portion == -1) 
+	if (portion == -1) {
+		printf("Reading error: client %d\n", fd);
 		return -1;
+	}
 	if (portion == 0) {
+		printf("Session ended: client %d\n", fd);
 		smtp.EndSession();
 		return 0;
 	}
+	buf[portion] = '\0';
+	puts(buf);
 	if (smtp.HandleInput(portion, &(buf[0])))
 		need_to_write = true;
 	return 1; 
@@ -31,6 +36,7 @@ short int Client::ProcessReadOperation()
 short int Client::ProcessWriteOperation()
 {
 	char* message = strdup(smtp.GetMessage());
+	puts(message);
 	return write(fd, message, strlen(message));
 }
 
@@ -66,8 +72,10 @@ void Server::CreateListeningSocket()
 }
 
 void Server::AddClient()
-{
-	sockaddr_in* cl_addr = new sockaddr_in;
+{	
+	// do i need info about client's address?
+	// if i do, addr in following line should not be NULL
+	sockaddr_in* cl_addr = NULL;
 	socklen_t cl_addrlen = INET_ADDRSTRLEN;
 	int cl_fd = accept(listening_sock, (sockaddr*) cl_addr, &cl_addrlen);
 	if (cl_fd == -1) {
@@ -81,16 +89,21 @@ void Server::AddClient()
 	if (i == MAX_SESSIONS) {
 		// handle situation when number of sessions is exceeded
 	} else {
-		clients_array[i] = new Client(cl_fd, cl_addr, BUF_SIZE_SERV);
+		printf("Created new client, index in array equals to: %d\n", i);
+		clients_array[i] = new Client(cl_fd, cl_addr, BUF_SIZE_SERV, &config);
 		//initialize client
 	}
 }
 
 void Server::DeleteClient(int fd)
-{
+{	
+	puts("Server::DeleteClient\n");
 	for (int i = 0; i < MAX_SESSIONS; i++) {
 		if (fd == clients_array[i]->GetSocketDesc()) {
+			printf("Trying to delete client with index: %d\n", i);
+			puts("before delete\n");
 			delete clients_array[i];
+			puts("after delete\n");
 			clients_array[i] = NULL;
 			if (shutdown(fd, 2) == -1)
 				perror("shutdown");
@@ -116,12 +129,15 @@ void Server::MainLoop()
 			if (clients_array[i]) {
 				fd = clients_array[i]->GetSocketDesc();
 				FD_SET(fd, &readfds);
-				FD_SET(fd, &writefds);
+				if (clients_array[i]->NeedsToWrite())
+					FD_SET(fd, &writefds);
 				if (fd + 1 > max_d)
 					max_d = fd + 1;
 			}
 		}
+		printf("before select\n");
 		int res = select(max_d+1, &readfds, &writefds, NULL, NULL);
+		printf("after select\n");
 		if (res < 1) {
 			perror("select");
 			exit(1);
@@ -130,19 +146,28 @@ void Server::MainLoop()
 			AddClient();
 		for (int i = 0; i < MAX_SESSIONS && clients_array[i]; i++) {
 			fd = clients_array[i]->GetSocketDesc();
+			printf("%d that is descriptor of the client\n",fd);
 			// if we need to write something, that means we do not read from socket
-			if (FD_ISSET(fd, &readfds) && !clients_array[i]->NeedsToWrite()) {
+			if (FD_ISSET(fd, &writefds)) {
+				printf("Socket is ready for writing\n");
+				if(clients_array[i]->ProcessWriteOperation() == -1)
+					perror("write");
+				else {
+					clients_array[i]->FulfillNeedToWrite();
+					puts("Fulfilled need to write");
+				}
+				if (clients_array[i]->NeedsToBeClosed()) {
+					puts("Need to close connection");
+					DeleteClient(clients_array[i]->GetSocketDesc());
+				}
+			}
+			if (FD_ISSET(fd, &readfds)) {
+				printf("Socket is ready for reading\n");
 				int res = clients_array[i]->ProcessReadOperation();
 				if (res == 0) 
 					DeleteClient(fd);
 				else if (res == -1)
 					perror("read");
-			}
-			if (FD_ISSET(fd, &writefds) && clients_array[i]->NeedsToWrite()) {
-				if(clients_array[i]->ProcessWriteOperation() == -1)
-					perror("write");
-				else
-					clients_array[i]->FulfillNeedToWrite();
 			}
 		}
 	}
@@ -166,7 +191,7 @@ void Server::Run()
 {
 	try {
 		ConfigureServer();
-		config.PrintEverything();
+		//config.PrintEverything();
 		port = config.GetPort();
 		CreateListeningSocket();
 		MainLoop();

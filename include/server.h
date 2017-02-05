@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include "serverConfiguration.h"
 #include "SMTPsession.h"
+#include <stdio.h>
 
 #define BUF_SIZE_SERV 1024
 
@@ -14,16 +15,18 @@ class Client {
 	bool need_to_write;
 	SMTPsession smtp;
 public:
-	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf):
-		fd(fd_), cl_addr(cl_addr_), need_to_write(false), smtp(sizebuf) {};
+	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf,ServerConfiguration* config_):
+		fd(fd_), cl_addr(cl_addr_), need_to_write(true), 
+		smtp(sizebuf, config_) {};
 	short int ProcessReadOperation();
 	short int ProcessWriteOperation();
 	bool NeedsToWrite() {return need_to_write;}
 	void FulfillNeedToWrite() {need_to_write = false;}
 	int GetSocketDesc() {return fd;}
-	~Client() {delete cl_addr;}
+	bool NeedsToBeClosed() {return smtp.LastMessage();}
+	//~Client() {delete cl_addr;}
+	~Client() {puts("why???");}
 };
-
 
 class Server {
 	int listening_sock;

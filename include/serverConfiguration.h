@@ -39,6 +39,7 @@ public:
 	bool OpenConfig();
 	void ExtractInfoFromConfig();
 	bool CloseConfig();
+	bool MailboxLocal(char*);
 	void PrintMailboxes();
 	void PrintEverything();
 	int GetPort() {return port;}
