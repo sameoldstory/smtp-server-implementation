@@ -9,7 +9,7 @@ class CommandLineArgs {
 public:
 	CommandLineArgs(int argc_, char** argv_):
 		argc(argc_), argv(argv_), config_path(0) {};
-	void ProcessArgs();
+	int ProcessArgs();
 	char* GetConfigPath() {return config_path;}
 	~CommandLineArgs();
 };

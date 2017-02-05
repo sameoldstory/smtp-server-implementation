@@ -26,12 +26,9 @@ ServerConfiguration::~ServerConfiguration()
 		delete mailboxes;
 		mailboxes = tmp;
 	}
-	if (config_path)
-		free(config_path);
-	if (server)
-		delete[] server;
-	if (domain)
-		delete[] domain;
+	free(config_path);
+	delete[] server;
+	delete[] domain;
 }
 
 int ServerConfiguration::ConvertStringToNumber(char* port_str)
@@ -202,8 +199,7 @@ bool ServerConfiguration::MailboxLocal(char* box_name)
 
 Mailbox::~Mailbox()
 {
-	if (name)
-		delete[] name;
+	delete[] name;
 	if (params) {
 		for (int i = 0; i < param_numb; i++)
 			delete[] params[i];

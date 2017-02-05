@@ -23,18 +23,14 @@ SMTPsession::SMTPsession(int buf_size, ServerConfiguration* config_):
 
 SMTPsession::~SMTPsession()
 {	
-	if (msg_for_client)
-		free(msg_for_client);
-	if (client_domain)
-		free(client_domain);
-	if (mail_from)
-		free(mail_from);
+	free(msg_for_client);
+	free(client_domain);
+	free(mail_from);
+
 	if (recipients) { 
-	for(int i = 0; i < recipients_count; i++) {
-		if (recipients[i])
+		for(int i = 0; i < recipients_count; i++) 
 			free(recipients[i]);
-	}
-	delete[] recipients;
+		delete[] recipients;
 	}
 }
 

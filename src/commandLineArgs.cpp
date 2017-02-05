@@ -4,14 +4,16 @@
 #include <stdlib.h>
 
 CommandLineArgs::~CommandLineArgs()
-{
+{	
 	free(config_path);
 }
 
-void CommandLineArgs::ProcessArgs()
+int CommandLineArgs::ProcessArgs()
 {
 	const char* flags = "-c:";
 	int res;
+	if (argc == 1)
+		return -1;
 	do {
 		res = getopt(argc, argv, flags);
 		switch(res) {
@@ -22,5 +24,6 @@ void CommandLineArgs::ProcessArgs()
 				break;
 		}
 	} while (res != -1);
+	return 0;
 }
 

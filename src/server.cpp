@@ -209,10 +209,8 @@ void Server::Run()
 
 void Server::EmptyAllocatedMemory()
 {
-	for (int i = 0; i < MAX_SESSIONS; i++) {
-		if (clients_array[i])
-			delete clients_array[i];
-	}
+	for (int i = 0; i < MAX_SESSIONS; i++) 
+		delete clients_array[i];
 	delete[] clients_array;
 }
 

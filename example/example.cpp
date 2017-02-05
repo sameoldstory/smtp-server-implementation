@@ -3,7 +3,10 @@
 
 int main(int argc, char** argv) {
 	CommandLineArgs cl_args(argc, argv);
-	cl_args.ProcessArgs();
+	if (cl_args.ProcessArgs() == -1) {
+		puts("Specify parameters: -c configname");
+		return -1;
+	}
 	Server serv(cl_args.GetConfigPath());
 	serv.Run();
 	return 0;
