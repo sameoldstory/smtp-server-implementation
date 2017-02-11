@@ -13,7 +13,7 @@ class Client {
 	sockaddr_in* cl_addr;
 	char buf [BUF_SIZE_SERV];
 	bool need_to_write;
-	SMTPsession smtp;
+	SMTPServerSession smtp;
 public:
 	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf,ServerConfiguration* config_):
 		fd(fd_), cl_addr(cl_addr_), need_to_write(true),

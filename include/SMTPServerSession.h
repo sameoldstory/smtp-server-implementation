@@ -5,7 +5,7 @@
 
 class ServerConfiguration;
 
-class SMTPsession {
+class SMTPServerSession {
 	ParseBuffer in_buf;
 	ServerConfiguration* config;
 	bool need_to_write;
@@ -14,8 +14,8 @@ class SMTPsession {
 	char* mail_from;
 	char** recipients;
 	int recipients_count;
-	bool CorrectMailFromArg(char*);
-	char* ExtractArgFromAngleBrackets(char*);
+	bool CorrectMail(char*);
+	char* ExtractFromAngleBrackets(char*);
 	void AddRecipient(char*);
 	void ProcessCommand(char*);
 	void ProcessEhlo(char*);
@@ -32,14 +32,14 @@ class SMTPsession {
 		start, helo, mail, rcpt, datastart, datafinish, quit
 	} state;
 public:
-	SMTPsession(int buf_size, ServerConfiguration* config_);
+	SMTPServerSession(int buf_size, ServerConfiguration* config_);
 	//void Start() const;
 	//bool Resume();
 	char* GetMessage();
 	bool LastMessage() {if (state == quit) return true; else return false;}
 	void EndSession();
 	bool HandleInput(int portion, char* buf);
-	~SMTPsession();
+	~SMTPServerSession();
 };
 
 #endif
