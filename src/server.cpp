@@ -64,7 +64,7 @@ short int Client::ProcessReadOperation()
 		return 0;
 	}
 	buf[portion] = '\0';
-	puts(buf);
+	printf("Command: %s\n", buf);
 	if (smtp.HandleInput(portion, &(buf[0])))
 		need_to_write = true;
 	return 1;
@@ -73,7 +73,7 @@ short int Client::ProcessReadOperation()
 short int Client::ProcessWriteOperation()
 {
 	char* message = strdup(smtp.GetMessage());
-	puts(message);
+	printf("Response: %s\n", message);
 	return write(fd, message, strlen(message));
 }
 

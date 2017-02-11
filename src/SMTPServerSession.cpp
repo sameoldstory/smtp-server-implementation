@@ -22,15 +22,17 @@ SMTPServerSession::SMTPServerSession(int buf_size, ServerConfiguration* config_)
 
 SMTPServerSession::~SMTPServerSession()
 {
+	puts("SMTPServerSession::~SMTPServerSession1");
 	free(msg_for_client);
 	free(client_domain);
 	free(mail_from);
-
+	puts("SMTPServerSession::~SMTPServerSession2");
 	if (recipients) {
 		for(int i = 0; i < recipients_count; i++)
 			free(recipients[i]);
 		delete[] recipients;
 	}
+	puts("SMTPServerSession::~SMTPServerSession3");
 }
 
 char* SMTPServerSession::GetMessage()
@@ -64,10 +66,8 @@ void SMTPServerSession::AddRecipient(char* str)
 	//temporary stupid code
 	recipients_count++;
 	char** tmp = new char*[recipients_count];
-	for (int i = 0; i < recipients_count-1; i++) {
+	for (int i = 0; i < recipients_count-1; i++)
 		tmp[i] = recipients[i];
-		free(recipients[i]);
-	}
 	tmp[recipients_count-1] = strdup(str);
 	delete[] recipients;
 	recipients = tmp;
@@ -233,7 +233,6 @@ void SMTPServerSession::PrintStringArgs()
 		for (int i = 0; i < recipients_count; i++)
 			puts(recipients[i]);
 	}
-	puts("SMTPServerSession::PrintStringArgs getting out");
 }
 
 void SMTPServerSession::ProcessQuit(char* str)
