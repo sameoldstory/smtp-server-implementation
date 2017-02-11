@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include "exceptions.h"
 #include "server.h"
-#include "SMTPsession.h"
+#include "SMTPServerSession.h"
 #include "string.h"
 
 #define DEFAULT_BACKLOG 5

@@ -3,7 +3,7 @@
 
 #include <arpa/inet.h>
 #include "serverConfiguration.h"
-#include "SMTPsession.h"
+#include "SMTPServerSession.h"
 #include <stdio.h>
 
 #define BUF_SIZE_SERV 1024

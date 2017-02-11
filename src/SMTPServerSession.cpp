@@ -1,4 +1,4 @@
-#include "SMTPsession.h"
+#include "SMTPServerSession.h"
 #include "serverConfiguration.h"
 #include <ctype.h>
 #include <unistd.h>
