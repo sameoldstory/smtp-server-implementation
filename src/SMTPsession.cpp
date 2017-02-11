@@ -11,10 +11,10 @@
 #define SMTP_EHLO_ANSWER
 
 
-SMTPsession::SMTPsession(int buf_size, ServerConfiguration* config_): 
+SMTPsession::SMTPsession(int buf_size, ServerConfiguration* config_):
 	in_buf(buf_size), config(config_), need_to_write(true), client_domain(NULL),
 	mail_from(NULL), recipients(NULL)
-{	
+{
 	state = start;
 	recipients_count = 0;
 	msg_for_client = strdup(SMTP_GREETING);
@@ -22,37 +22,37 @@ SMTPsession::SMTPsession(int buf_size, ServerConfiguration* config_):
 }
 
 SMTPsession::~SMTPsession()
-{	
+{
 	free(msg_for_client);
 	free(client_domain);
 	free(mail_from);
 
-	if (recipients) { 
-		for(int i = 0; i < recipients_count; i++) 
+	if (recipients) {
+		for(int i = 0; i < recipients_count; i++)
 			free(recipients[i]);
 		delete[] recipients;
 	}
 }
 
 char* SMTPsession::GetMessage()
-{	
+{
 	need_to_write = false;
 	return msg_for_client;
 }
 
 void SMTPsession::EndSession()
 {
-	// 
+	//
 }
 
 bool SMTPsession::CorrectMailFromArg(char*)
-{	
+{
 	//here we check that argument of Mail From command is correct email address
 	return true;
 }
 
 char* SMTPsession::ExtractArgFromAngleBrackets(char* str)
-{	
+{
 	puts("ExtractArgFromAngleBrackets");
 	puts(str);
 	int len = strlen(str);
@@ -63,7 +63,7 @@ char* SMTPsession::ExtractArgFromAngleBrackets(char* str)
 }
 
 void SMTPsession::AddRecipient(char* str)
-{	
+{
 	//temporary stupid code
 	recipients_count++;
 	char** tmp = new char*[recipients_count];
@@ -77,7 +77,7 @@ void SMTPsession::AddRecipient(char* str)
 }
 
 bool SMTPsession::HandleInput(int portion, char* buf)
-{	
+{
 	in_buf.EatData(portion, buf);
 	if (state != datastart) {
 		need_to_write = true;
@@ -91,7 +91,7 @@ bool SMTPsession::HandleInput(int portion, char* buf)
 }
 
 void SMTPsession::ProcessCommand(char* str)
-{	
+{
 	puts("ProcessCommand");
 	puts(str);
 	int cmdlen = MIN_CMD_LEN;
@@ -113,7 +113,7 @@ void SMTPsession::ProcessCommand(char* str)
 }
 
 void SMTPsession::ProcessUnknownCmd(char* str)
-{	
+{
 	puts("unknown cmd <");
 	puts(str);
 	puts("unknown cmd >");
@@ -141,19 +141,19 @@ void SMTPsession::ProcessEhlo(char* str)
 }
 
 void SMTPsession::ProcessMail(char* str)
-{	
+{
 	puts("in ProcessMail");
 	if (state != helo) {
 		msg_for_client = strdup("500 MAIL: Bad sequence of commands\r\n");
-		return;	
-	} 
+		return;
+	}
 	char* word = in_buf.ExtractWordFromLine(str);
 	puts("in ProcessMail 1");
 	puts(word);
 	if (!word || strncmp(word, "FROM:", MIN_CMD_LEN+1)) {
 		printf("Wrong MAIL syntax 1. string: %s, word: %s\n", str, word);
 		msg_for_client = strdup("501 Wrong syntax for MAIL command\r\n");
-		return;	
+		return;
 	}
 	word = word + strlen("FROM:");
 	puts("in ProcessMail 2");
@@ -166,7 +166,7 @@ void SMTPsession::ProcessMail(char* str)
 	if (!word) {
 		printf("Wrong MAIL syntax 2. string: %s, word: %s\n", str, word);
 		msg_for_client = strdup("501 Wrong syntax for MAIL command\r\n");
-		return;		
+		return;
 	}
 	if(CorrectMailFromArg(word)) {
 		mail_from = strdup(word);
@@ -178,16 +178,16 @@ void SMTPsession::ProcessMail(char* str)
 }
 
 void SMTPsession::ProcessRcpt(char* str)
-{	
+{
 	puts("in ProcessRcpt");
 	if (state != mail && state != rcpt) {
 		msg_for_client = strdup("503 RCPT: Bad sequence of commands\r\n");
 		return;
 	}
-	char* word = in_buf.ExtractWordFromLine(str); 
+	char* word = in_buf.ExtractWordFromLine(str);
 	if (!word || strncmp(word, "TO:", strlen("TO:"))) {
 		msg_for_client = strdup("501 Wrong syntax for RCPT command\r\n");
-		return;	
+		return;
 	}
 	word = word + strlen("TO:");
 	puts("ProcessRcpt");
@@ -198,7 +198,7 @@ void SMTPsession::ProcessRcpt(char* str)
 	puts(word);
 	if (!word) {
 		msg_for_client = strdup("501 Wrong syntax for RCPT command\r\n");
-		return;		
+		return;
 	}
 	if (!config->MailboxLocal(word)) {
 		msg_for_client = strdup("550 User not found\r\n");
@@ -212,7 +212,7 @@ void SMTPsession::ProcessRcpt(char* str)
 }
 
 void SMTPsession::ProcessData(char* str)
-{	
+{
 	puts("inProcessData");
 	if (state != rcpt) {
 		msg_for_client = strdup("503 DATA: Bad sequence of commands\r\n");
@@ -235,12 +235,40 @@ void SMTPsession::ProcessEmail()
 			return;
 		}
 		str = in_buf.ExtractUntilCRLF();
-	}	
+	}
+}
+
+void SMTPsession::PrintStringArgs()
+{
+	puts("SMTPsession::PrintStringArgs");
+
+	if (msg_for_client)
+		puts(msg_for_client);
+	else
+		puts("no msg_for_client");
+
+	if (client_domain)
+		puts(client_domain);
+	else
+		puts("no client_domain");
+
+	if (mail_from)
+		puts(mail_from);
+	else
+		puts("no mail_from");
+
+	puts("recipients");
+	if (recipients) {
+		for (int i = 0; i < recipients_count; i++)
+			puts(recipients[i]);
+	}
+	puts("SMTPsession::PrintStringArgs getting out");
 }
 
 void SMTPsession::ProcessQuit(char* str)
 {
 	state = quit;
 	msg_for_client = strdup("221 Closing connection\r\n");
-}     
+	PrintStringArgs();
+}
 

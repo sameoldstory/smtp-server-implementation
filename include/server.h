@@ -16,7 +16,7 @@ class Client {
 	SMTPsession smtp;
 public:
 	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf,ServerConfiguration* config_):
-		fd(fd_), cl_addr(cl_addr_), need_to_write(true), 
+		fd(fd_), cl_addr(cl_addr_), need_to_write(true),
 		smtp(sizebuf, config_) {};
 	short int ProcessReadOperation();
 	short int ProcessWriteOperation();
@@ -24,8 +24,19 @@ public:
 	void FulfillNeedToWrite() {need_to_write = false;}
 	int GetSocketDesc() {return fd;}
 	bool NeedsToBeClosed() {return smtp.LastMessage();}
-	//~Client() {delete cl_addr;}
-	~Client() {puts("why???");}
+	~Client() {delete cl_addr;}
+};
+
+struct ReadyIndicators {
+	int max_fd;
+	fd_set readfds;
+	fd_set writefds;
+	ReadyIndicators();
+	void AddListeningSock(int sock);
+	void AddClientSock(int sock);
+	void DeleteClientSock(int sock);
+	void ClearWritefds(int sock);
+	void SetWritefds(int sock);
 };
 
 class Server {
@@ -34,11 +45,14 @@ class Server {
 	sockaddr_in address;
 	Client** clients_array;
 	ServerConfiguration config;
+	ReadyIndicators fdsets;
 	void ConfigureServer();
 	void CreateListeningSocket();
+	void PrepareSetsForSelect(fd_set* read, fd_set* write);
 	void MainLoop();
 	void AddClient();
-	void DeleteClient(int);
+	//void DeleteClient(int);
+	void DeleteClient(Client**);
 	void EmptyAllocatedMemory();
 public:
 	Server(char* config_path);

@@ -25,6 +25,7 @@ class SMTPsession {
 	void ProcessQuit(char*);
 	void ProcessEmail();
 	void ProcessUnknownCmd(char*);
+	void PrintStringArgs();
 	// name of state corresponds to the last received command
 	// start state is the state before any command
 	enum {

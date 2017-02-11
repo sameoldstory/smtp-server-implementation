@@ -10,7 +10,44 @@
 #include "string.h"
 
 #define DEFAULT_BACKLOG 5
-#define MAX_SESSIONS 4
+#define MAX_SESSIONS 8
+
+ReadyIndicators::ReadyIndicators()
+{
+	max_fd = 0;
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+}
+
+void ReadyIndicators::AddListeningSock(int sock)
+{
+	FD_SET(sock, &readfds);
+	max_fd = sock;
+}
+
+void ReadyIndicators::AddClientSock(int sock)
+{
+	FD_SET(sock, &readfds);
+	FD_SET(sock, &writefds);
+	if (sock > max_fd)
+		max_fd = sock;
+}
+
+void ReadyIndicators::DeleteClientSock(int sock)
+{
+	FD_CLR(sock, &readfds);
+	FD_CLR(sock, &writefds);
+}
+
+void ReadyIndicators::ClearWritefds(int sock)
+{
+	FD_CLR(sock, &writefds);
+}
+
+void ReadyIndicators::SetWritefds(int sock)
+{
+	FD_SET(sock, &writefds);
+}
 
 //return values are just like in read system call
 
@@ -30,7 +67,7 @@ short int Client::ProcessReadOperation()
 	puts(buf);
 	if (smtp.HandleInput(portion, &(buf[0])))
 		need_to_write = true;
-	return 1; 
+	return 1;
 }
 
 short int Client::ProcessWriteOperation()
@@ -41,7 +78,7 @@ short int Client::ProcessWriteOperation()
 }
 
 Server::Server(char* conf_path): listening_sock(-1), port(-1),
-	clients_array(NULL), config(conf_path)
+	clients_array(NULL), config(conf_path), fdsets()
 {
 	clients_array = new Client*[MAX_SESSIONS];
 	for (int i = 0; i < MAX_SESSIONS; i++)
@@ -72,9 +109,7 @@ void Server::CreateListeningSocket()
 }
 
 void Server::AddClient()
-{	
-	// do i need info about client's address?
-	// if i do, addr in following line should not be NULL
+{
 	sockaddr_in* cl_addr = NULL;
 	socklen_t cl_addrlen = INET_ADDRSTRLEN;
 	int cl_fd = accept(listening_sock, (sockaddr*) cl_addr, &cl_addrlen);
@@ -84,90 +119,67 @@ void Server::AddClient()
 		return;
 	}
 	int i;
-	for (i = 0; clients_array[i]; i++)
-		{}
+	for (i = 0; clients_array[i]; i++) {
+
+	}
 	if (i == MAX_SESSIONS) {
 		// handle situation when number of sessions is exceeded
 	} else {
-		printf("Created new client, index in array equals to: %d\n", i);
 		clients_array[i] = new Client(cl_fd, cl_addr, BUF_SIZE_SERV, &config);
-		//initialize client
+		fdsets.AddClientSock(cl_fd);
+		puts("Client added");
 	}
 }
 
-void Server::DeleteClient(int fd)
-{	
-	puts("Server::DeleteClient\n");
-	for (int i = 0; i < MAX_SESSIONS; i++) {
-		if (fd == clients_array[i]->GetSocketDesc()) {
-			printf("Trying to delete client with index: %d\n", i);
-			puts("before delete\n");
-			delete clients_array[i];
-			puts("after delete\n");
-			clients_array[i] = NULL;
-			if (shutdown(fd, 2) == -1)
-				perror("shutdown");
-			close(fd);
-			return;
-		}
-	}
+void Server::DeleteClient(Client** client_ptr)
+{
+	int fd = (*client_ptr)->GetSocketDesc();
+	delete *client_ptr;
+	*client_ptr = NULL;
+	shutdown(fd, SHUT_RDWR);
+	close(fd);
+	fdsets.DeleteClientSock(fd);
+	puts("Client deleted");
 }
 
-//mainloop to be optimized later
-//loop initializing sets of descriptors is ubiqitous
+void Server::PrepareSetsForSelect(fd_set* read, fd_set* write)
+{
+	memcpy(read, &(fdsets.readfds), sizeof(fd_set));
+	memcpy(write, &(fdsets.writefds), sizeof(fd_set));
+}
 
 void Server::MainLoop()
 {
+	fd_set readfds, writefds;
+
 	for(;;) {
-		fd_set readfds, writefds;
-		int max_d = listening_sock;
-		FD_ZERO(&readfds);
-		FD_ZERO(&writefds);
-		FD_SET(listening_sock, &readfds);
-		int fd;
-		for (int i = 0; i < MAX_SESSIONS; i++) {
-			if (clients_array[i]) {
-				fd = clients_array[i]->GetSocketDesc();
-				FD_SET(fd, &readfds);
-				if (clients_array[i]->NeedsToWrite())
-					FD_SET(fd, &writefds);
-				if (fd + 1 > max_d)
-					max_d = fd + 1;
-			}
-		}
-		printf("before select\n");
-		int res = select(max_d+1, &readfds, &writefds, NULL, NULL);
-		printf("after select\n");
+
+		PrepareSetsForSelect(&readfds, &writefds);
+
+		int res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, NULL);
 		if (res < 1) {
 			perror("select");
-			exit(1);
+			return;
 		}
+
 		if (FD_ISSET(listening_sock, &readfds))
 			AddClient();
-		for (int i = 0; i < MAX_SESSIONS && clients_array[i]; i++) {
-			fd = clients_array[i]->GetSocketDesc();
-			printf("%d that is descriptor of the client\n",fd);
-			// if we need to write something, that means we do not read from socket
-			if (FD_ISSET(fd, &writefds)) {
-				printf("Socket is ready for writing\n");
-				if(clients_array[i]->ProcessWriteOperation() == -1)
-					perror("write");
-				else {
-					clients_array[i]->FulfillNeedToWrite();
-					puts("Fulfilled need to write");
-				}
-				if (clients_array[i]->NeedsToBeClosed()) {
-					puts("Need to close connection");
-					DeleteClient(clients_array[i]->GetSocketDesc());
-				}
+
+		for (int i = 0; i < MAX_SESSIONS; i++) {
+			if (!clients_array[i])
+				continue;
+			int fd = clients_array[i]->GetSocketDesc();
+
+			if (clients_array[i]->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
+				clients_array[i]->ProcessWriteOperation();
+				fdsets.ClearWritefds(fd);
+				if (clients_array[i]->NeedsToBeClosed())
+					DeleteClient(&(clients_array[i]));
 			}
-			if (FD_ISSET(fd, &readfds)) {
-				printf("Socket is ready for reading\n");
-				int res = clients_array[i]->ProcessReadOperation();
-				if (res == 0) 
-					DeleteClient(fd);
-				else if (res == -1)
-					perror("read");
+
+			if (clients_array[i] && FD_ISSET(fd, &readfds)) {
+				clients_array[i]->ProcessReadOperation();
+				fdsets.SetWritefds(fd);
 			}
 		}
 	}
@@ -194,6 +206,7 @@ void Server::Run()
 		//config.PrintEverything();
 		port = config.GetPort();
 		CreateListeningSocket();
+		fdsets.AddListeningSock(listening_sock);
 		MainLoop();
 
 	} catch(const char* s) {
@@ -209,7 +222,7 @@ void Server::Run()
 
 void Server::EmptyAllocatedMemory()
 {
-	for (int i = 0; i < MAX_SESSIONS; i++) 
+	for (int i = 0; i < MAX_SESSIONS; i++)
 		delete clients_array[i];
 	delete[] clients_array;
 }
