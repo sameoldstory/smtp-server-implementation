@@ -14,8 +14,8 @@ class SMTPServerSession {
 	char* mail_from;
 	char** recipients;
 	int recipients_count;
-	bool CorrectMail(char*);
-	char* ExtractFromAngleBrackets(char*);
+	bool CorrectMail(char*) const;
+	char* ExtractFromAngleBrackets(char*) const;
 	void AddRecipient(char*);
 	void ProcessCommand(char*);
 	void ProcessEhlo(char*);
@@ -25,7 +25,7 @@ class SMTPServerSession {
 	void ProcessQuit(char*);
 	void ProcessEmail();
 	void ProcessUnknownCmd(char*);
-	void PrintStringArgs();
+	void PrintStringArgs() const;
 	// name of state corresponds to the last received command
 	// start state is the state before any command
 	enum {
@@ -33,10 +33,8 @@ class SMTPServerSession {
 	} state;
 public:
 	SMTPServerSession(int buf_size, ServerConfiguration* config_);
-	//void Start() const;
-	//bool Resume();
 	char* GetMessage();
-	bool LastMessage() {if (state == quit) return true; else return false;}
+	bool LastMessage() const {if (state == quit) return true; else return false;}
 	void EndSession();
 	bool HandleInput(int portion, char* buf);
 	~SMTPServerSession();

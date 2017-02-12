@@ -10,7 +10,7 @@ public:
 	CommandLineArgs(int argc_, char** argv_):
 		argc(argc_), argv(argv_), config_path(0) {};
 	int ProcessArgs();
-	char* GetConfigPath() {return config_path;}
+	char* GetConfigPath() const {return config_path;}
 	~CommandLineArgs();
 };
 

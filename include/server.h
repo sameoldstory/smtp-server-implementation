@@ -20,10 +20,10 @@ public:
 		smtp(sizebuf, config_) {};
 	short int ProcessReadOperation();
 	short int ProcessWriteOperation();
-	bool NeedsToWrite() {return need_to_write;}
+	bool NeedsToWrite() const {return need_to_write;}
 	void FulfillNeedToWrite() {need_to_write = false;}
-	int GetSocketDesc() {return fd;}
-	bool NeedsToBeClosed() {return smtp.LastMessage();}
+	int GetSocketDesc() const {return fd;}
+	bool NeedsToBeClosed() const {return smtp.LastMessage();}
 	~Client() {delete cl_addr;}
 };
 
@@ -48,10 +48,9 @@ class Server {
 	ReadyIndicators fdsets;
 	void ConfigureServer();
 	void CreateListeningSocket();
-	void PrepareSetsForSelect(fd_set* read, fd_set* write);
+	void PrepareSetsForSelect(fd_set* read, fd_set* write) const;
 	void MainLoop();
 	void AddClient();
-	//void DeleteClient(int);
 	void DeleteClient(Client**);
 	void EmptyAllocatedMemory();
 public:

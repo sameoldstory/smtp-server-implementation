@@ -22,17 +22,14 @@ SMTPServerSession::SMTPServerSession(int buf_size, ServerConfiguration* config_)
 
 SMTPServerSession::~SMTPServerSession()
 {
-	puts("SMTPServerSession::~SMTPServerSession1");
 	free(msg_for_client);
 	free(client_domain);
 	free(mail_from);
-	puts("SMTPServerSession::~SMTPServerSession2");
 	if (recipients) {
 		for(int i = 0; i < recipients_count; i++)
 			free(recipients[i]);
 		delete[] recipients;
 	}
-	puts("SMTPServerSession::~SMTPServerSession3");
 }
 
 char* SMTPServerSession::GetMessage()
@@ -46,13 +43,13 @@ void SMTPServerSession::EndSession()
 	//
 }
 
-bool SMTPServerSession::CorrectMail(char*)
+bool SMTPServerSession::CorrectMail(char*) const
 {
 	//here we check that argument of Mail From command is correct email address
 	return true;
 }
 
-char* SMTPServerSession::ExtractFromAngleBrackets(char* str)
+char* SMTPServerSession::ExtractFromAngleBrackets(char* str) const
 {
 	int len = strlen(str);
 	if (str[0] != '<' || str[len-1] != '>')
@@ -209,7 +206,7 @@ void SMTPServerSession::ProcessEmail()
 	}
 }
 
-void SMTPServerSession::PrintStringArgs()
+void SMTPServerSession::PrintStringArgs() const
 {
 	puts("SMTPServerSession::PrintStringArgs");
 

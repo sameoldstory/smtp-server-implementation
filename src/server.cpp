@@ -72,7 +72,7 @@ short int Client::ProcessReadOperation()
 
 short int Client::ProcessWriteOperation()
 {
-	char* message = strdup(smtp.GetMessage());
+	char* message = smtp.GetMessage();
 	printf("Response: %s\n", message);
 	return write(fd, message, strlen(message));
 }
@@ -142,7 +142,7 @@ void Server::DeleteClient(Client** client_ptr)
 	puts("Client deleted");
 }
 
-void Server::PrepareSetsForSelect(fd_set* read, fd_set* write)
+void Server::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 {
 	memcpy(read, &(fdsets.readfds), sizeof(fd_set));
 	memcpy(write, &(fdsets.writefds), sizeof(fd_set));

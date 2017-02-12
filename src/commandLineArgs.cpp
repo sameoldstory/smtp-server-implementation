@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 CommandLineArgs::~CommandLineArgs()
-{	
+{
 	free(config_path);
 }
 

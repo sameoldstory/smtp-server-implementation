@@ -32,16 +32,16 @@ class ServerConfiguration {
 	MailboxList* mailboxes;
 	MailboxList* CreateMailbox(char* name, char* opt_line);
 	void AddMailboxToList(MailboxList* m);
-	int ConvertStringToNumber(char* port_str);
+	int ConvertStringToNumber(char* port_str) const;
 public:
 	ServerConfiguration(char* config_path_);
-	char* GetConfigPath() {return config_path;};
+	char* GetConfigPath() const {return config_path;};
 	bool OpenConfig();
 	void ExtractInfoFromConfig();
 	bool CloseConfig();
-	bool MailboxLocal(char*);
-	void PrintMailboxes();
-	void PrintEverything();
+	bool MailboxLocal(char*) const;
+	void PrintMailboxes() const;
+	void PrintEverything() const;
 	int GetPort() {return port;}
 	~ServerConfiguration();
 };

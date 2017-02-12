@@ -31,7 +31,7 @@ ServerConfiguration::~ServerConfiguration()
 	delete[] domain;
 }
 
-int ServerConfiguration::ConvertStringToNumber(char* port_str)
+int ServerConfiguration::ConvertStringToNumber(char* port_str) const
 {
 	int len = strlen(port_str);
 	if (len == 0)
@@ -77,7 +77,7 @@ void ServerConfiguration::AddMailboxToList(MailboxList* m)
 	}
 }
 
-void ServerConfiguration::PrintMailboxes()
+void ServerConfiguration::PrintMailboxes() const
 {
 	MailboxList* tmp = mailboxes;
 	while(tmp) {
@@ -89,7 +89,7 @@ void ServerConfiguration::PrintMailboxes()
 	}
 }
 
-void ServerConfiguration::PrintEverything()
+void ServerConfiguration::PrintEverything() const
 {
 	PrintMailboxes();
 	printf("%d\n", port);
@@ -186,7 +186,7 @@ void ServerConfiguration::ExtractInfoFromConfig()
 	}
 }
 
-bool ServerConfiguration::MailboxLocal(char* box_name)
+bool ServerConfiguration::MailboxLocal(char* box_name) const
 {
 	MailboxList* tmp = mailboxes;
 	while(tmp) {
