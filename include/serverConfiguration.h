@@ -29,6 +29,7 @@ class ServerConfiguration {
 	ParseBuffer buf;
 	char* server;
 	char* domain;
+	char* queue_path;
 	MailboxList* mailboxes;
 	MailboxList* CreateMailbox(char* name, char* opt_line);
 	void AddMailboxToList(MailboxList* m);
@@ -42,7 +43,10 @@ public:
 	bool MailboxLocal(char*) const;
 	void PrintMailboxes() const;
 	void PrintEverything() const;
-	int GetPort() {return port;}
+	int GetPort() const {return port;}
+	char* GetServerName() const {return server;}
+	char* GetDomainName() const {return domain;}
+	char* GetQueuePath() const {return queue_path;}
 	~ServerConfiguration();
 };
 

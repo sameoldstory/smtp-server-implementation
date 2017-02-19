@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <sys/select.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <netdb.h>
+#include <errno.h>
 #include "exceptions.h"
 #include "server.h"
 #include "SMTPServerSession.h"
@@ -49,6 +52,30 @@ void ReadyIndicators::SetWritefds(int sock)
 	FD_SET(sock, &writefds);
 }
 
+Client::Client(int fd_, sockaddr_in* cl_addr_,int sizebuf,ServerConfiguration* config_):
+	fd(fd_), cl_addr(cl_addr_), need_to_write(true),
+	smtp(sizebuf, config_, GetHostname(), GetIpString())
+{
+
+}
+
+Client::~Client()
+{
+	free(cl_addr);
+}
+
+char* Client::GetIpString() const
+{
+	return inet_ntoa(cl_addr->sin_addr);
+}
+
+char* Client::GetHostname() const
+{
+	struct hostent* res =
+		gethostbyaddr(&cl_addr->sin_addr.s_addr, sizeof(unsigned long), AF_INET);
+	return res->h_name;
+}
+
 //return values are just like in read system call
 
 short int Client::ProcessReadOperation()
@@ -64,7 +91,7 @@ short int Client::ProcessReadOperation()
 		return 0;
 	}
 	buf[portion] = '\0';
-	printf("Command: %s\n", buf);
+	//printf("Command: %s\n", buf);
 	if (smtp.HandleInput(portion, &(buf[0])))
 		need_to_write = true;
 	return 1;
@@ -73,7 +100,7 @@ short int Client::ProcessReadOperation()
 short int Client::ProcessWriteOperation()
 {
 	char* message = smtp.GetMessage();
-	printf("Response: %s\n", message);
+	//printf("Response: %s\n", message);
 	return write(fd, message, strlen(message));
 }
 
@@ -94,23 +121,23 @@ void Server::CreateListeningSocket()
 	listening_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (listening_sock == -1) {
 		perror("socket");
-		exit(1);
+		throw FatalException();
 	}
 	int opt = 1;
 	setsockopt(listening_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	if (bind(listening_sock, (sockaddr*) &address, sizeof(address))) {
 		perror("bind");
-		exit(1);
+		throw FatalException();
 	}
 	if (listen(listening_sock, DEFAULT_BACKLOG) == -1) {
 		perror("listen");
-		exit(1);
+		throw FatalException();
 	}
 }
 
 void Server::AddClient()
 {
-	sockaddr_in* cl_addr = NULL;
+	sockaddr_in* cl_addr = (sockaddr_in*)malloc(INET_ADDRSTRLEN);
 	socklen_t cl_addrlen = INET_ADDRSTRLEN;
 	int cl_fd = accept(listening_sock, (sockaddr*) cl_addr, &cl_addrlen);
 	if (cl_fd == -1) {
@@ -189,14 +216,26 @@ void Server::ConfigureServer()
 {
 	if (!config.GetConfigPath()) {
 		printf("Server can't be launched: specify path for configuration file with -c key\n");
-		exit(1);
+		throw FatalException();
 	}
 	if (!config.OpenConfig()) {
 		printf("Config file can not be opened\n");
-		exit(1);
+		throw FatalException();
 	}
 	config.ExtractInfoFromConfig();
 	config.CloseConfig();
+}
+
+void Server::CreateMailQueueDir()
+{
+	char* path = config.GetQueuePath();
+	int res = mkdir(path, 0700);
+	if (res == -1) {
+		if (errno == EEXIST)
+			puts("Mail queue directory already exists");
+		else
+			throw FatalException();
+	}
 }
 
 void Server::Run()
@@ -207,6 +246,9 @@ void Server::Run()
 		port = config.GetPort();
 		CreateListeningSocket();
 		fdsets.AddListeningSock(listening_sock);
+		// this server method should be moved to QueueManager later
+		CreateMailQueueDir();
+		// this initialisation as well
 		MainLoop();
 
 	} catch(const char* s) {
@@ -235,3 +277,7 @@ Server::~Server()
 		close(listening_sock);
 	}
 }
+
+
+
+

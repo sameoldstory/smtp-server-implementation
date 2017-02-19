@@ -166,7 +166,11 @@ void ServerConfiguration::ExtractInfoFromConfig()
 					domain = strdup(word);
 				} else if (word && !strcmp(word, "mailboxes_start")) {
 					mailboxes = true;
-				} else if (word && !strcmp(word, "mailboxes_end")) {
+				} else if (word && !strcmp(word, "queue_path")) {
+					word = buf.ExtractWordFromLine(line);
+					queue_path = strdup(word);
+				}
+				else if (word && !strcmp(word, "mailboxes_end")) {
 					mailboxes = false;
 				} else if (mailboxes && word) {
 					try {

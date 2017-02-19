@@ -11,20 +11,20 @@
 class Client {
 	int fd;
 	sockaddr_in* cl_addr;
-	char buf [BUF_SIZE_SERV];
+	char buf[BUF_SIZE_SERV];
 	bool need_to_write;
 	SMTPServerSession smtp;
 public:
-	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf,ServerConfiguration* config_):
-		fd(fd_), cl_addr(cl_addr_), need_to_write(true),
-		smtp(sizebuf, config_) {};
+	Client(int fd_, sockaddr_in* cl_addr_,int sizebuf,ServerConfiguration* config_);
 	short int ProcessReadOperation();
 	short int ProcessWriteOperation();
 	bool NeedsToWrite() const {return need_to_write;}
 	void FulfillNeedToWrite() {need_to_write = false;}
 	int GetSocketDesc() const {return fd;}
+	char* GetIpString() const;
+	char* GetHostname() const;
 	bool NeedsToBeClosed() const {return smtp.LastMessage();}
-	~Client() {delete cl_addr;}
+	~Client();
 };
 
 struct ReadyIndicators {
@@ -49,6 +49,7 @@ class Server {
 	void ConfigureServer();
 	void CreateListeningSocket();
 	void PrepareSetsForSelect(fd_set* read, fd_set* write) const;
+	void CreateMailQueueDir();
 	void MainLoop();
 	void AddClient();
 	void DeleteClient(Client**);
