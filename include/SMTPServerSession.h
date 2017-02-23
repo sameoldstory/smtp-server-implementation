@@ -5,12 +5,19 @@
 
 class ServerConfiguration;
 
+struct Recipient {
+	char* email;
+	const char* opt;
+	struct Recipient *next;
+	Recipient(char*, const char*);
+	~Recipient();
+};
+
 struct ServerSessionInfo {
 	char* client_domain;
 	char* mail_from;
-	char** recipients;
-	int recipients_count;
-	void AddRecipient(char*);
+	Recipient* recipients;
+	void AddRecipient(char*, const char*);
 	ServerSessionInfo();
 	~ServerSessionInfo();
 };

@@ -29,8 +29,19 @@ SenderInfo::~SenderInfo()
 	free(ip_addr);
 }
 
+Recipient::Recipient(char* _email, const char* _opt)
+{
+	email = strdup(_email);
+	opt = _opt;
+}
+
+Recipient::~Recipient()
+{
+	free(email);
+}
+
 ServerSessionInfo::ServerSessionInfo(): client_domain(NULL),
-	mail_from(NULL), recipients(NULL), recipients_count(0)
+	mail_from(NULL), recipients(NULL)
 {
 
 }
@@ -39,24 +50,25 @@ ServerSessionInfo::~ServerSessionInfo()
 {
 	free(client_domain);
 	free(mail_from);
-	if (recipients) {
-	for(int i = 0; i < recipients_count; i++)
-		free(recipients[i]);
-		delete[] recipients;
+	Recipient* tmp;
+	while (recipients) {
+		tmp = recipients;
+		recipients = recipients->next;
+		delete tmp;
 	}
 }
 
-void ServerSessionInfo::AddRecipient(char* new_recipient)
+void ServerSessionInfo::AddRecipient(char* email, const char* opt)
 {
-	//temporary stupid code
-	recipients_count++;
-	char** tmp = new char*[recipients_count+1];
-	for (int i = 0; i < recipients_count-1; i++)
-		tmp[i] = recipients[i];
-	tmp[recipients_count-1] = strdup(new_recipient);
-	tmp[recipients_count] = NULL;
-	delete[] recipients;
-	recipients = tmp;
+	Recipient* new_recip = new Recipient(email, opt);
+	if (!recipients) {
+		recipients = new_recip;
+		return;
+	}
+	Recipient* tmp = recipients;
+	while (tmp->next)
+		tmp = tmp->next;
+	tmp->next = new_recip;
 }
 
 MessageSaver::MessageSaver(ServerSessionInfo* _info, const char* _path, char* host, char* ip, char* serv_name):
@@ -103,9 +115,11 @@ void MessageSaver::WriteTimeInfoToServiceFile(int fd) const
 void MessageSaver::WriteRecipientsInfoToServiceFile(int fd) const
 {
 	char buf[TEMP_BUF_SIZE];
-	for (int i = 0; session_info->recipients[i]; i++) {
-		sprintf(buf, "%s %s\n", session_info->recipients[i], DEFAULT_DELIVERY_STATUS);
+	Recipient* tmp = session_info->recipients;
+	while (tmp) {
+		sprintf(buf, "%s %s %s\n", tmp->email, DEFAULT_DELIVERY_STATUS, tmp->opt);
 		write(fd, buf, strlen(buf));
+		tmp = tmp->next;
 	}
 }
 
@@ -134,14 +148,14 @@ void MessageSaver::AddFromLineToReceive(char* & buf) const
 
 void MessageSaver::AddByLineToReceive(char* & buf) const
 {
-	sprintf(buf, "by %s (Ceres) with ESMTP id %d",
+	sprintf(buf, "\tby %s (Ceres) with ESMTP id %d",
 		server_name, counter);
 	buf += strlen(buf);
 }
 
 void MessageSaver::AddForLineToReceive(char* & buf) const
 {
-	sprintf(buf, "\nfor <%s>", session_info->recipients[0]);
+	sprintf(buf, "\n\tfor <%s>", session_info->recipients->email);
 	buf += strlen(buf);
 }
 
@@ -149,7 +163,7 @@ void MessageSaver::AddDateLineToReceive(char* & buf, int size) const
 {
 	time_t now = time(NULL);
 	struct tm *t = localtime(&now);
-	strftime(buf, size, "%a, %d %b %G %T %z (%Z)\n", t);
+	strftime(buf, size, "\t%a, %d %b %G %T %z (%Z)\n", t);
 }
 
 void MessageSaver::AddReceiveLineToMessageFile() const
@@ -158,7 +172,7 @@ void MessageSaver::AddReceiveLineToMessageFile() const
 	char* tmp = buf;
 	AddFromLineToReceive(tmp);
 	AddByLineToReceive(tmp);
-	if (session_info->recipients_count == 1)
+	if (!session_info->recipients->next)
 		AddForLineToReceive(tmp);
 	sprintf(tmp, ";\n");
 	tmp += strlen(";\n");
@@ -328,7 +342,7 @@ void SMTPServerSession::ProcessRcpt(char* str)
 		msg_for_client = strdup("550 User not found\r\n");
 	} else {
 		state = rcpt;
-		session_info.AddRecipient(word);
+		session_info.AddRecipient(word, config->GetMailboxOptAsString(word));
 		msg_for_client = strdup("250 ok\r\n");
 	}
 }

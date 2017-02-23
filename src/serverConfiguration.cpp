@@ -201,6 +201,18 @@ bool ServerConfiguration::MailboxLocal(char* box_name) const
 	return false;
 }
 
+const char* ServerConfiguration::GetMailboxOptAsString(char* box_name) const
+{
+	static const char* options[] = {"forward", "deliver", "trap"};
+	MailboxList* tmp = mailboxes;
+	while(tmp) {
+		if (!strcmp(tmp->box.name, box_name))
+			return options[tmp->box.option];
+		tmp = tmp->next;
+	}
+	throw("Mailbox does not exist");
+}
+
 Mailbox::~Mailbox()
 {
 	delete[] name;

@@ -31,7 +31,7 @@ endif
 deps.mk: $(SRC_MODULES)
 	mkdir -p $(OBJ_DIR)
 	mkdir -p $(DEPS_DIR)
-	echo "-include $(DEPS_MODULES)" > $@
+	@echo "-include $(DEPS_MODULES)" > $@
 
 .PHONY: clean
 

@@ -2,8 +2,7 @@
 #define SERVER_CONFIGURATION_H
 
 #include "buffer.h"
-
-enum mail_option {forward, deliver, trap};
+#include "types.h"
 
 struct Mailbox {
 	char* name;
@@ -41,6 +40,7 @@ public:
 	void ExtractInfoFromConfig();
 	bool CloseConfig();
 	bool MailboxLocal(char*) const;
+	const char* GetMailboxOptAsString(char*) const;
 	void PrintMailboxes() const;
 	void PrintEverything() const;
 	int GetPort() const {return port;}
