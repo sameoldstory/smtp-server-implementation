@@ -13,7 +13,7 @@
 
 ServerConfiguration::ServerConfiguration(char* config_path_):
 	fd(-1), port(-1), buf(CONFIG_BUF_SIZE), server(NULL), domain(NULL),
-	mailboxes(NULL)
+	queue_path(NULL), mailboxes(NULL)
 {
 	config_path = strdup(config_path_);
 }
@@ -27,8 +27,9 @@ ServerConfiguration::~ServerConfiguration()
 		mailboxes = tmp;
 	}
 	free(config_path);
-	delete[] server;
-	delete[] domain;
+	free(server);
+	free(domain);
+	free(queue_path);
 }
 
 int ServerConfiguration::ConvertStringToNumber(char* port_str) const
@@ -92,9 +93,12 @@ void ServerConfiguration::PrintMailboxes() const
 void ServerConfiguration::PrintEverything() const
 {
 	PrintMailboxes();
-	printf("%d\n", port);
-	printf("%s\n", server);
-	printf("%s\n", domain);
+	if (port)
+		printf("%d\n", port);
+	if (server)
+		printf("%s\n", server);
+	if (domain)
+		printf("%s\n", domain);
 }
 
 MailboxList* ServerConfiguration::CreateMailbox(char* name, char* opt_line)
@@ -215,7 +219,7 @@ const char* ServerConfiguration::GetMailboxOptAsString(char* box_name) const
 
 Mailbox::~Mailbox()
 {
-	delete[] name;
+	free(name);
 	if (params) {
 		for (int i = 0; i < param_numb; i++)
 			delete[] params[i];

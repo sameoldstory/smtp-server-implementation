@@ -1,5 +1,6 @@
 #include "server.h"
 #include "commandLineArgs.h"
+#include <stdio.h>
 
 int main(int argc, char** argv) {
 	CommandLineArgs cl_args(argc, argv);

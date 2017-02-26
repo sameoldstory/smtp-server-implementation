@@ -7,14 +7,14 @@ struct SessionArgs {
 	char* ehlo;
 	char* mail;
 	char* rcpt;
+	SessionArgs(char*, char*, char*);
 	~SessionArgs();
 };
 
 class SMTPClientSession {
 	SessionArgs args;
-	ServerConfiguration* config;
 public:
-	SMTPClientSession(ServerConfiguration*, char*, char*);
+	SMTPClientSession(char*, char*, char*);
 	~SMTPClientSession();
 };
 

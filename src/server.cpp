@@ -3,17 +3,18 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <sys/select.h>
-#include <unistd.h>
 #include <sys/stat.h>
-#include <netdb.h>
 #include <errno.h>
+#include <string.h>
+#include <unistd.h>
 #include "exceptions.h"
 #include "server.h"
-#include "SMTPServerSession.h"
-#include "string.h"
+#include "TCPSession.h"
+
+class SMTPServerSession;
 
 #define DEFAULT_BACKLOG 5
-#define MAX_SESSIONS 8
+#define MAX_SESSIONS 16
 
 ReadyIndicators::ReadyIndicators()
 {
@@ -28,7 +29,7 @@ void ReadyIndicators::AddListeningSock(int sock)
 	max_fd = sock;
 }
 
-void ReadyIndicators::AddClientSock(int sock)
+void ReadyIndicators::AddSessionSock(int sock)
 {
 	FD_SET(sock, &readfds);
 	FD_SET(sock, &writefds);
@@ -36,7 +37,7 @@ void ReadyIndicators::AddClientSock(int sock)
 		max_fd = sock;
 }
 
-void ReadyIndicators::DeleteClientSock(int sock)
+void ReadyIndicators::DeleteSessionSock(int sock)
 {
 	FD_CLR(sock, &readfds);
 	FD_CLR(sock, &writefds);
@@ -52,64 +53,12 @@ void ReadyIndicators::SetWritefds(int sock)
 	FD_SET(sock, &writefds);
 }
 
-Client::Client(int fd_, sockaddr_in* cl_addr_,int sizebuf,ServerConfiguration* config_):
-	fd(fd_), cl_addr(cl_addr_), need_to_write(true),
-	smtp(sizebuf, config_, GetHostname(), GetIpString())
-{
-
-}
-
-Client::~Client()
-{
-	free(cl_addr);
-}
-
-char* Client::GetIpString() const
-{
-	return inet_ntoa(cl_addr->sin_addr);
-}
-
-char* Client::GetHostname() const
-{
-	struct hostent* res =
-		gethostbyaddr(&cl_addr->sin_addr.s_addr, sizeof(unsigned long), AF_INET);
-	return res->h_name;
-}
-
-//return values are just like in read system call
-
-short int Client::ProcessReadOperation()
-{
-	int portion = read(fd, &(buf[0]), BUF_SIZE_SERV);
-	if (portion == -1) {
-		printf("Reading error: client %d\n", fd);
-		return -1;
-	}
-	if (portion == 0) {
-		printf("Session ended: client %d\n", fd);
-		smtp.EndSession();
-		return 0;
-	}
-	buf[portion] = '\0';
-	//printf("Command: %s\n", buf);
-	if (smtp.HandleInput(portion, &(buf[0])))
-		need_to_write = true;
-	return 1;
-}
-
-short int Client::ProcessWriteOperation()
-{
-	char* message = smtp.GetMessage();
-	//printf("Response: %s\n", message);
-	return write(fd, message, strlen(message));
-}
-
 Server::Server(char* conf_path): listening_sock(-1), port(-1),
-	clients_array(NULL), config(conf_path), fdsets()
+	sessions(NULL), config(conf_path), fdsets()
 {
-	clients_array = new Client*[MAX_SESSIONS];
+	sessions = new TCPSession*[MAX_SESSIONS];
 	for (int i = 0; i < MAX_SESSIONS; i++)
-		clients_array[i] = NULL;
+		sessions[i] = NULL;
 }
 
 void Server::CreateListeningSocket()
@@ -135,38 +84,40 @@ void Server::CreateListeningSocket()
 	}
 }
 
-void Server::AddClient()
+int Server::AcceptConnection(sockaddr_in* addr)
 {
-	sockaddr_in* cl_addr = (sockaddr_in*)malloc(INET_ADDRSTRLEN);
-	socklen_t cl_addrlen = INET_ADDRSTRLEN;
-	int cl_fd = accept(listening_sock, (sockaddr*) cl_addr, &cl_addrlen);
-	if (cl_fd == -1) {
-		perror("accept");
-		// some error handling is needed here
-		return;
-	}
+	socklen_t size = INET_ADDRSTRLEN;
+	int fd = accept(listening_sock, (sockaddr*) addr, &size);
+	if (fd == -1)
+		throw "Accept Failed";
+	return fd;
+}
+
+TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
+{
 	int i;
-	for (i = 0; clients_array[i]; i++) {
+	for (i = 0; sessions[i]; i++) {
 
 	}
 	if (i == MAX_SESSIONS) {
 		// handle situation when number of sessions is exceeded
 	} else {
-		clients_array[i] = new Client(cl_fd, cl_addr, BUF_SIZE_SERV, &config);
-		fdsets.AddClientSock(cl_fd);
-		puts("Client added");
+		sessions[i] = new TCPSession(fd, *addr);
+		fdsets.AddSessionSock(fd);
+		puts("Session added");
 	}
+	return sessions[i];
 }
 
-void Server::DeleteClient(Client** client_ptr)
+void Server::DeleteSession(TCPSession** ptr)
 {
-	int fd = (*client_ptr)->GetSocketDesc();
-	delete *client_ptr;
-	*client_ptr = NULL;
+	int fd = (*ptr)->GetSocketDesc();
+	delete *ptr;
+	*ptr = NULL;
 	shutdown(fd, SHUT_RDWR);
 	close(fd);
-	fdsets.DeleteClientSock(fd);
-	puts("Client deleted");
+	fdsets.DeleteSessionSock(fd);
+	puts("Session deleted");
 }
 
 void Server::PrepareSetsForSelect(fd_set* read, fd_set* write) const
@@ -178,6 +129,7 @@ void Server::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 void Server::MainLoop()
 {
 	fd_set readfds, writefds;
+	sockaddr_in addr;
 
 	for(;;) {
 
@@ -189,23 +141,26 @@ void Server::MainLoop()
 			return;
 		}
 
-		if (FD_ISSET(listening_sock, &readfds))
-			AddClient();
+		if (FD_ISSET(listening_sock, &readfds)) {
+			int fd = AcceptConnection(&addr);
+			TCPSession* s = AddSession(&addr, fd);
+			s->ServeAsSMTPServerSession(&config);
+		}
 
 		for (int i = 0; i < MAX_SESSIONS; i++) {
-			if (!clients_array[i])
+			if (!sessions[i])
 				continue;
-			int fd = clients_array[i]->GetSocketDesc();
+			int fd = sessions[i]->GetSocketDesc();
 
-			if (clients_array[i]->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
-				clients_array[i]->ProcessWriteOperation();
+			if (sessions[i]->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
+				sessions[i]->ProcessWriteOperation();
 				fdsets.ClearWritefds(fd);
-				if (clients_array[i]->NeedsToBeClosed())
-					DeleteClient(&(clients_array[i]));
+				if (sessions[i]->NeedsToBeClosed())
+					DeleteSession(&(sessions[i]));
 			}
 
-			if (clients_array[i] && FD_ISSET(fd, &readfds)) {
-				clients_array[i]->ProcessReadOperation();
+			if (sessions[i] && FD_ISSET(fd, &readfds)) {
+				sessions[i]->ProcessReadOperation();
 				fdsets.SetWritefds(fd);
 			}
 		}
@@ -232,9 +187,11 @@ void Server::CreateMailQueueDir()
 	int res = mkdir(path, 0700);
 	if (res == -1) {
 		if (errno == EEXIST)
-			puts("Mail queue directory already exists");
-		else
+			puts("CreateMailQueueDir: already exists");
+		else {
+			puts("Could not create directory for Mail Queue");
 			throw FatalException();
+		}
 	}
 }
 
@@ -242,13 +199,11 @@ void Server::Run()
 {
 	try {
 		ConfigureServer();
-		//config.PrintEverything();
 		port = config.GetPort();
 		CreateListeningSocket();
 		fdsets.AddListeningSock(listening_sock);
 		// this server method should be moved to QueueManager later
 		CreateMailQueueDir();
-		// this initialisation as well
 		MainLoop();
 
 	} catch(const char* s) {
@@ -265,8 +220,8 @@ void Server::Run()
 void Server::EmptyAllocatedMemory()
 {
 	for (int i = 0; i < MAX_SESSIONS; i++)
-		delete clients_array[i];
-	delete[] clients_array;
+		delete sessions[i];
+	delete[] sessions;
 }
 
 Server::~Server()

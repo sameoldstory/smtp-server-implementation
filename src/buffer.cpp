@@ -4,21 +4,18 @@
 #include <unistd.h>
 
 // for now there will be a lot of pointless new and delete[] operators
-// it will be optimized a bit later 
+// it will be optimized a bit later
 
-ParseBuffer::ParseBuffer(int maxlen_):len(0), maxlen(maxlen_), 
-	untileol(NULL), untilcrlf(NULL), word(NULL)
+ParseBuffer::ParseBuffer(int maxlen_):len(0), maxlen(maxlen_),
+	ret_string(NULL)
 {
 	data = new char [maxlen];
 }
 
 ParseBuffer::~ParseBuffer()
-{	
+{
 	delete[] data;
-	if (untileol)
-		delete[] untileol;
-	if (untilcrlf)
-		delete[] untilcrlf;
+	delete[] ret_string;
 }
 
 void ParseBuffer::PrintData()
@@ -48,16 +45,13 @@ char* ParseBuffer::ExtractUntilCRLF()
 		return NULL;
 	for (int i = 0; i < len-1; i++) {
 		if ((data[i] == '\r') && (data[i+1] == '\n')) {
-			if (untilcrlf) {
-				delete[] untilcrlf;
-				untilcrlf = NULL;
-			}
-			untilcrlf = new char[i+1];
-			memcpy(untilcrlf, data, i);
-			untilcrlf[i] = '\0';
+			delete[] ret_string;
+			ret_string = new char[i+1];
+			memcpy(ret_string, data, i);
+			ret_string[i] = '\0';
 			len -= i + 2;
 			memmove(data, data+i+2, len);
-			return untilcrlf;
+			return ret_string;
 		}
 	}
 	return NULL;
@@ -68,17 +62,14 @@ char* ParseBuffer::ExtractUntilEOL()
 	if (!len)
 		return NULL;
 	for (int i = 0; i < len-1; i++) {
-		if (untileol) {
-			delete[] untileol;
-			untileol = NULL;
-		}
 		if (data[i] == '\n')  {
-			untileol = new char[i+1];
-			memcpy(untileol, data, i);
-			untileol[i] = '\0';
+			delete[] ret_string;
+			ret_string = new char[i+1];
+			memcpy(ret_string, data, i);
+			ret_string[i] = '\0';
 			len -= i + 1;
 			memmove(data, data+i+1, len);
-			return untileol;
+			return ret_string;
 		}
 	}
 	return NULL;
@@ -92,11 +83,6 @@ char* ParseBuffer::ExtractWordFromLine(char* & line)
 			if (beg == i)
 				beg++;
 			else {
-				if (word) {
-					delete[] word;
-					word = NULL;
-				}
-				word = new char [i - beg + 1];
 				memcpy(word, line+beg, i-beg);
 				word[i - beg] = '\0';
 				memmove(line, line+i, len-i+1);
@@ -107,4 +93,5 @@ char* ParseBuffer::ExtractWordFromLine(char* & line)
 	}
 	return NULL;
 }
+
 

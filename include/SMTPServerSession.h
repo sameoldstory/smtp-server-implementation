@@ -2,6 +2,7 @@
 #define SERVER_SMTPSESSION_H
 
 #include "buffer.h"
+#include "sessionHierarchy.h"
 
 class ServerConfiguration;
 
@@ -55,7 +56,7 @@ public:
 	~MessageSaver();
 };
 
-class SMTPServerSession {
+class SMTPServerSession: public SMTPSession {
 	ParseBuffer in_buf;
 	ServerConfiguration* config;
 	ServerSessionInfo session_info;
@@ -78,7 +79,7 @@ class SMTPServerSession {
 public:
 	SMTPServerSession(int, ServerConfiguration*, char*, char*);
 	char* GetMessage();
-	bool LastMessage() const {if (state == quit) return true; else return false;}
+	bool SessionFinished() {if (state == quit) return true; else return false;}
 	void EndSession();
 	bool HandleInput(int portion, char* buf);
 	~SMTPServerSession();

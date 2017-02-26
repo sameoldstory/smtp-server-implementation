@@ -1,15 +1,14 @@
 #ifndef SERVER_BUFFER_H
 #define SERVER_BUFFER_H
 
-//#define DEFAULT_BUF_SIZE 2048
+#define MAX_WORD_SIZE 1024
 
 class ParseBuffer {
 	char* data;
 	int len;
 	int maxlen;
-	char* untileol;
-	char* untilcrlf;
-	char* word;
+	char* ret_string;
+	char word[MAX_WORD_SIZE];
 public:
 	ParseBuffer(int maxlen_);
 	char* ExtractWordFromLine(char* & line);
@@ -21,3 +20,5 @@ public:
 };
 
 #endif
+
+

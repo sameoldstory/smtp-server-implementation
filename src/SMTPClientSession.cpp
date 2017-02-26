@@ -5,16 +5,22 @@
 
 SessionArgs::~SessionArgs()
 {
+	free(ehlo);
 	free(mail);
 	free(rcpt);
 }
 
-SMTPClientSession::SMTPClientSession(ServerConfiguration* _config, char* sender, char* rcpt):
-	config(_config)
+SessionArgs::SessionArgs(char* _ehlo, char* _sender, char* _rcpt)
 {
-	args.ehlo = config->GetServerName();
-	args.mail = strdup(sender);
-	args.rcpt = strdup(rcpt);
+	ehlo = strdup(_ehlo);
+	mail = strdup(_sender);
+	rcpt = strdup(_rcpt);
+}
+
+SMTPClientSession::SMTPClientSession(char* ehlo, char* sender, char* rcpt):
+	args(ehlo, sender, rcpt)
+{
+
 }
 
 SMTPClientSession::~SMTPClientSession()
