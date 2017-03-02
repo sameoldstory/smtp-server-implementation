@@ -28,7 +28,9 @@ class Server {
 	void ConfigureServer();
 	void CreateListeningSocket();
 	void PrepareSetsForSelect(fd_set* read, fd_set* write) const;
+	// TODO: this method should be moved to QueueManager later
 	void CreateMailQueueDir();
+	void ProcessSession(TCPSession* s_ptr, fd_set& readfds, fd_set& writefds);
 	void MainLoop();
 	int AcceptConnection(sockaddr_in* cl_addr);
 	TCPSession* AddSession(sockaddr_in* addr, int fd);

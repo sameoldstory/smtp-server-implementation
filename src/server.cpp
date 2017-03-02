@@ -10,6 +10,8 @@
 #include "exceptions.h"
 #include "server.h"
 #include "TCPSession.h"
+// TODO: get rid of this include later, when queueManager class is ready
+#include "SMTPServerSession.h"
 
 class SMTPServerSession;
 
@@ -100,7 +102,7 @@ TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
 
 	}
 	if (i == MAX_SESSIONS) {
-		// handle situation when number of sessions is exceeded
+		//TODO: handle situation when number of sessions is exceeded
 	} else {
 		sessions[i] = new TCPSession(fd, *addr);
 		fdsets.AddSessionSock(fd);
@@ -126,6 +128,31 @@ void Server::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 	memcpy(write, &(fdsets.writefds), sizeof(fd_set));
 }
 
+void Server::ProcessSession(TCPSession* s_ptr, fd_set& readfds, fd_set& writefds)
+{
+	int fd = s_ptr->GetSocketDesc();
+
+	if (s_ptr->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
+		s_ptr->ProcessWriteOperation();
+		fdsets.ClearWritefds(fd);
+		if (s_ptr->NeedsToBeClosed()) {
+// TODO: get rid of this block of code when class queueManager is ready
+// here I need to check what kind of driver is hidden inside TcpSession
+			SMTPServerSession* tmp_ptr =
+				dynamic_cast<SMTPServerSession*>(s_ptr->GetSessionDriverPtr());
+			if (tmp_ptr) {
+				//TODO: here I should create SMTPClientSession
+			}
+			DeleteSession(&s_ptr);
+		}
+	}
+
+	if (s_ptr && FD_ISSET(fd, &readfds)) {
+		s_ptr->ProcessReadOperation();
+		fdsets.SetWritefds(fd);
+	}
+}
+
 void Server::MainLoop()
 {
 	fd_set readfds, writefds;
@@ -148,21 +175,8 @@ void Server::MainLoop()
 		}
 
 		for (int i = 0; i < MAX_SESSIONS; i++) {
-			if (!sessions[i])
-				continue;
-			int fd = sessions[i]->GetSocketDesc();
-
-			if (sessions[i]->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
-				sessions[i]->ProcessWriteOperation();
-				fdsets.ClearWritefds(fd);
-				if (sessions[i]->NeedsToBeClosed())
-					DeleteSession(&(sessions[i]));
-			}
-
-			if (sessions[i] && FD_ISSET(fd, &readfds)) {
-				sessions[i]->ProcessReadOperation();
-				fdsets.SetWritefds(fd);
-			}
+			if (sessions[i])
+				ProcessSession(sessions[i], readfds, writefds);
 		}
 	}
 }
@@ -202,7 +216,6 @@ void Server::Run()
 		port = config.GetPort();
 		CreateListeningSocket();
 		fdsets.AddListeningSock(listening_sock);
-		// this server method should be moved to QueueManager later
 		CreateMailQueueDir();
 		MainLoop();
 

@@ -27,6 +27,10 @@ public:
 	bool NeedsToBeClosed() const;
 	void ServeAsSMTPServerSession(ServerConfiguration* config_);
 	void ServeAsSMTPClientSession();
+	// this is temporary method
+	TCPSessionDriver* GetSessionDriverPtr() {
+		return session_driver;
+	}
 	~TCPSession();
 };
 

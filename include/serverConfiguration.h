@@ -14,6 +14,8 @@ struct Mailbox {
 	~Mailbox();
 };
 
+//TODO: get rid of this class, create class MailboxesManager
+
 struct MailboxList {
 	Mailbox box;
 	MailboxList* next;

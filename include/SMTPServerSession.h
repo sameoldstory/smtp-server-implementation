@@ -6,6 +6,8 @@
 
 class ServerConfiguration;
 
+// TODO: Recipient should be replaced by Mailbox struct
+
 struct Recipient {
 	char* email;
 	const char* opt;
@@ -29,6 +31,8 @@ struct SenderInfo {
 	SenderInfo(char*, char*);
 	~SenderInfo();
 };
+
+//TODO: MessageSaver should be moved to queueManager
 
 class MessageSaver {
 	static int counter;
@@ -55,6 +59,8 @@ public:
 	void WriteLineToFile(char*);
 	~MessageSaver();
 };
+
+// TODO: ServerConfiguration should be replaced by MailboxManager
 
 class SMTPServerSession: public SMTPSession {
 	ParseBuffer in_buf;

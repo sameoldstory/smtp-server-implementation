@@ -358,6 +358,8 @@ void SMTPServerSession::ProcessData(char* str)
 	msg_for_client = strdup("354 Start mail input, end with <CRLF>.<CRLF>\r\n");
 }
 
+//TODO: ExtractUntilCRLF should not be used here since line length may be more than buffer size
+
 void SMTPServerSession::ProcessEmail()
 {
 	char* str = in_buf.ExtractUntilCRLF();
