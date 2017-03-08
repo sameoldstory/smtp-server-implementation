@@ -4,23 +4,15 @@
 #include "buffer.h"
 #include "sessionHierarchy.h"
 
+class MailboxManager;
 class ServerConfiguration;
-
-// TODO: Recipient should be replaced by Mailbox struct
-
-struct Recipient {
-	char* email;
-	const char* opt;
-	struct Recipient *next;
-	Recipient(char*, const char*);
-	~Recipient();
-};
+struct Mailbox;
 
 struct ServerSessionInfo {
 	char* client_domain;
 	char* mail_from;
-	Recipient* recipients;
-	void AddRecipient(char*, const char*);
+	Mailbox* recipients;
+	void AddRecipient(Mailbox* box);
 	ServerSessionInfo();
 	~ServerSessionInfo();
 };
@@ -60,11 +52,9 @@ public:
 	~MessageSaver();
 };
 
-// TODO: ServerConfiguration should be replaced by MailboxManager
-
 class SMTPServerSession: public SMTPSession {
 	ParseBuffer in_buf;
-	ServerConfiguration* config;
+	MailboxManager* mailbox_manager;
 	ServerSessionInfo session_info;
 	MessageSaver msg_saver;
 	bool need_to_write;

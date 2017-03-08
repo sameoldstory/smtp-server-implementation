@@ -29,17 +29,6 @@ SenderInfo::~SenderInfo()
 	free(ip_addr);
 }
 
-Recipient::Recipient(char* _email, const char* _opt)
-{
-	email = strdup(_email);
-	opt = _opt;
-}
-
-Recipient::~Recipient()
-{
-	free(email);
-}
-
 ServerSessionInfo::ServerSessionInfo(): client_domain(NULL),
 	mail_from(NULL), recipients(NULL)
 {
@@ -50,7 +39,7 @@ ServerSessionInfo::~ServerSessionInfo()
 {
 	free(client_domain);
 	free(mail_from);
-	Recipient* tmp;
+	Mailbox* tmp;
 	while (recipients) {
 		tmp = recipients;
 		recipients = recipients->next;
@@ -58,17 +47,11 @@ ServerSessionInfo::~ServerSessionInfo()
 	}
 }
 
-void ServerSessionInfo::AddRecipient(char* email, const char* opt)
+void ServerSessionInfo::AddRecipient(Mailbox* box)
 {
-	Recipient* new_recip = new Recipient(email, opt);
-	if (!recipients) {
-		recipients = new_recip;
-		return;
-	}
-	Recipient* tmp = recipients;
-	while (tmp->next)
-		tmp = tmp->next;
-	tmp->next = new_recip;
+	Mailbox* new_box = new Mailbox(*box);
+	new_box->next = recipients;
+	recipients = new_box;
 }
 
 MessageSaver::MessageSaver(ServerSessionInfo* _info, const char* _path, char* host, char* ip, char* serv_name):
@@ -115,9 +98,9 @@ void MessageSaver::WriteTimeInfoToServiceFile(int fd) const
 void MessageSaver::WriteRecipientsInfoToServiceFile(int fd) const
 {
 	char buf[TEMP_BUF_SIZE];
-	Recipient* tmp = session_info->recipients;
+	Mailbox* tmp = session_info->recipients;
 	while (tmp) {
-		sprintf(buf, "%s %s %s\n", tmp->email, DEFAULT_DELIVERY_STATUS, tmp->opt);
+		sprintf(buf, "%s %s %s\n", tmp->name, DEFAULT_DELIVERY_STATUS, tmp->GetOptionAsString());
 		write(fd, buf, strlen(buf));
 		tmp = tmp->next;
 	}
@@ -155,7 +138,7 @@ void MessageSaver::AddByLineToReceive(char* & buf) const
 
 void MessageSaver::AddForLineToReceive(char* & buf) const
 {
-	sprintf(buf, "\n\tfor <%s>", session_info->recipients->email);
+	sprintf(buf, "\n\tfor <%s>", session_info->recipients->name);
 	buf += strlen(buf);
 }
 
@@ -196,9 +179,9 @@ void MessageSaver::WriteLineToFile(char* str)
 		perror("MessageSaver::WriteLineToFile");
 }
 
-SMTPServerSession::SMTPServerSession(int buf_size, ServerConfiguration* config_, char* host, char* ip):
-	in_buf(buf_size), config(config_), session_info(),
-	msg_saver(&session_info, config_->GetQueuePath(), host, ip, config->GetServerName()),
+SMTPServerSession::SMTPServerSession(int buf_size, ServerConfiguration* config, char* host, char* ip):
+	in_buf(buf_size), mailbox_manager(&(config->mailbox_manager)), session_info(),
+	msg_saver(&session_info, config->GetQueuePath(), host, ip, config->GetServerName()),
 	need_to_write(true)
 {
 	state = start;
@@ -216,14 +199,16 @@ char* SMTPServerSession::GetMessage()
 	return msg_for_client;
 }
 
+// TODO: code SMTPServerSession::EndSession()
 void SMTPServerSession::EndSession()
 {
-	//
+
 }
 
+// TODO: code SMTPServerSession::CorrectMail
 bool SMTPServerSession::CorrectMail(char*) const
 {
-	//here we check that argument of Mail From command is correct email address
+
 	return true;
 }
 
@@ -338,11 +323,12 @@ void SMTPServerSession::ProcessRcpt(char* str)
 		msg_for_client = strdup("501 Wrong syntax for RCPT command\r\n");
 		return;
 	}
-	if (!config->MailboxLocal(word)) {
+	Mailbox* box = mailbox_manager->GetMailbox(word);
+	if (!box) {
 		msg_for_client = strdup("550 User not found\r\n");
 	} else {
 		state = rcpt;
-		session_info.AddRecipient(word, config->GetMailboxOptAsString(word));
+		session_info.AddRecipient(box);
 		msg_for_client = strdup("250 ok\r\n");
 	}
 }

@@ -11,21 +11,131 @@
 
 #define CONFIG_BUF_SIZE 1024
 
+Mailbox::Mailbox(const Mailbox& box): name(strdup(box.name)),
+	option(box.option), param_numb(box.param_numb), next(NULL)
+{
+	params = new char*[param_numb];
+	for (int i = 0; i < param_numb; i++)
+		params[i] = strdup(box.params[i]);
+}
+
+Mailbox::~Mailbox()
+{
+	free(name);
+	if (params) {
+		for (int i = 0; i < param_numb; i++)
+			delete[] params[i];
+	}
+	delete[] params;
+}
+
+const char* Mailbox::GetOptionAsString() const
+{
+	static const char* options[] = {"forward", "deliver", "trap"};
+	return options[option];
+}
+
+MailboxManager::MailboxManager(): mailboxes(NULL)
+{
+
+}
+
+MailboxManager::~MailboxManager()
+{
+	Mailbox* tmp;
+	while(mailboxes) {
+		tmp = mailboxes->next;
+		delete mailboxes;
+		mailboxes = tmp;
+	}
+}
+
+void MailboxManager::PrintMailboxes() const
+{
+	Mailbox* tmp = mailboxes;
+	while(tmp) {
+		printf("%s\n", tmp->name);
+		for (int i = 0; i < tmp->param_numb; i++)
+			printf("%s\n", tmp->params[i]);
+		printf("---\n");
+		tmp = tmp->next;
+	}
+}
+
+Mailbox* MailboxManager::GetMailbox(char* box_name) const
+{
+	Mailbox* tmp = mailboxes;
+	while(tmp) {
+		if (!strcmp(tmp->name, box_name))
+			return tmp;
+		tmp = tmp->next;
+	}
+	return NULL;
+}
+
+// TODO: refactor MailboxManager::AddMailbox
+
+void MailboxManager::AddMailbox(char* name, char* opt_line, ParseBuffer& buf)
+{
+	char** params = NULL, *tmp_word;
+	mail_option opt;
+	int numb_opt = 0;
+	char tmp_buf[1024];
+	tmp_word = buf.ExtractWordFromLine(opt_line);
+	if (!tmp_word) {
+		sprintf(tmp_buf, "Option [deliver/forward/trap] wasn't specified for mailbox: %s",
+		name);
+		delete[] name;
+		throw ConfigError(tmp_buf);
+	} else {
+		if (!strcmp("deliver", tmp_word)) {
+			opt = deliver;
+		} else if (!strcmp("trap", tmp_word)) {
+			opt = trap;
+		} else if (!strcmp("forward", tmp_word)) {
+			opt = forward;
+		} else {
+			sprintf(tmp_buf, "Unknown option \'%s\' for mailbox %s", tmp_word, name);
+			delete[] name;
+			throw ConfigError(tmp_buf);
+		}
+	}
+	tmp_word = buf.ExtractWordFromLine(opt_line);
+	while (tmp_word) {
+		if (numb_opt == 0) {
+			params  = new char*[1];
+			params[0] = strdup(tmp_word);
+		} else {
+			char** tmp = new char*[numb_opt+1];
+			for (int i = 0; i < numb_opt; i++)
+				tmp[i] = params[i];
+			tmp[numb_opt] = strdup(tmp_word);
+			delete[] params;
+			params  = tmp;
+		}
+		numb_opt++;
+		tmp_word = buf.ExtractWordFromLine(opt_line);
+	}
+
+	Mailbox* new_box = new Mailbox(name, opt, numb_opt, params);
+
+	if (!mailboxes)
+		mailboxes = new_box;
+	else {
+		new_box->next = mailboxes;
+		mailboxes = new_box;
+	}
+}
+
 ServerConfiguration::ServerConfiguration(char* config_path_):
 	fd(-1), port(-1), buf(CONFIG_BUF_SIZE), server(NULL), domain(NULL),
-	queue_path(NULL), mailboxes(NULL)
+	queue_path(NULL), mailbox_manager()
 {
 	config_path = strdup(config_path_);
 }
 
 ServerConfiguration::~ServerConfiguration()
 {
-	MailboxList* tmp;
-	while(mailboxes) {
-		tmp = mailboxes->next;
-		delete mailboxes;
-		mailboxes = tmp;
-	}
 	free(config_path);
 	free(server);
 	free(domain);
@@ -68,83 +178,7 @@ bool ServerConfiguration::CloseConfig()
 		return true;
 }
 
-void ServerConfiguration::AddMailboxToList(MailboxList* m)
-{
-	if (!mailboxes)
-		mailboxes = m;
-	else {
-		m->next = mailboxes;
-		mailboxes = m;
-	}
-}
-
-void ServerConfiguration::PrintMailboxes() const
-{
-	MailboxList* tmp = mailboxes;
-	while(tmp) {
-		printf("%s\n", tmp->box.name);
-		for (int i = 0; i < tmp->box.param_numb; i++)
-			printf("%s\n", tmp->box.params[i]);
-		printf("---\n");
-		tmp = tmp->next;
-	}
-}
-
-void ServerConfiguration::PrintEverything() const
-{
-	PrintMailboxes();
-	if (port)
-		printf("%d\n", port);
-	if (server)
-		printf("%s\n", server);
-	if (domain)
-		printf("%s\n", domain);
-}
-
-MailboxList* ServerConfiguration::CreateMailbox(char* name, char* opt_line)
-{
-	char** params  = NULL, *tmp_word;
-	mail_option opt;
-	int numb_opt = 0;
-	char tmp_buf[1024];
-	tmp_word = buf.ExtractWordFromLine(opt_line);
-	if (!tmp_word) {
-		sprintf(tmp_buf, "Option [deliver/forward/trap] wasn't specified for mailbox: %s",
-		name);
-		delete[] name;
-		throw ConfigError(tmp_buf);
-	} else {
-		if (!strcmp("deliver", tmp_word)) {
-			opt = deliver;
-		} else if (!strcmp("trap", tmp_word)) {
-			opt = trap;
-		} else if (!strcmp("forward", tmp_word)) {
-			opt = forward;
-		} else {
-			sprintf(tmp_buf, "Unknown option \'%s\' for mailbox %s", tmp_word, name);
-			delete[] name;
-			throw ConfigError(tmp_buf);
-		}
-	}
-	tmp_word = buf.ExtractWordFromLine(opt_line);
-	while (tmp_word) {
-		if (numb_opt == 0) {
-			params  = new char*[1];
-			params[0] = strdup(tmp_word);
-		} else {
-			char** tmp = new char*[numb_opt+1];
-			for (int i = 0; i < numb_opt; i++)
-				tmp[i] = params[i];
-			tmp[numb_opt] = strdup(tmp_word);
-			delete[] params;
-			params  = tmp;
-		}
-		numb_opt++;
-		tmp_word = buf.ExtractWordFromLine(opt_line);
-	}
-	MailboxList* new_box = new MailboxList(name, opt, params, numb_opt);
-	return new_box;
-}
+// TODO: ServerConfiguration::ExtractInfoFromConfig is horrible. needs to be refactored
 
 void ServerConfiguration::ExtractInfoFromConfig()
 {
@@ -178,7 +212,7 @@ void ServerConfiguration::ExtractInfoFromConfig()
 					mailboxes = false;
 				} else if (mailboxes && word) {
 					try {
-						AddMailboxToList(CreateMailbox(strdup(word), line));
+						mailbox_manager.AddMailbox(strdup(word), line, buf);
 					} catch (ConfigError e) {
 						e.Print();
 					}
@@ -192,38 +226,5 @@ void ServerConfiguration::ExtractInfoFromConfig()
 		perror(config_path);
 		exit(1);
 	}
-}
-
-bool ServerConfiguration::MailboxLocal(char* box_name) const
-{
-	MailboxList* tmp = mailboxes;
-	while(tmp) {
-		if (!strcmp(tmp->box.name, box_name))
-			return true;
-		tmp = tmp->next;
-	}
-	return false;
-}
-
-const char* ServerConfiguration::GetMailboxOptAsString(char* box_name) const
-{
-	static const char* options[] = {"forward", "deliver", "trap"};
-	MailboxList* tmp = mailboxes;
-	while(tmp) {
-		if (!strcmp(tmp->box.name, box_name))
-			return options[tmp->box.option];
-		tmp = tmp->next;
-	}
-	throw("Mailbox does not exist");
-}
-
-Mailbox::~Mailbox()
-{
-	free(name);
-	if (params) {
-		for (int i = 0; i < param_numb; i++)
-			delete[] params[i];
-	}
-	delete[] params;
 }
 

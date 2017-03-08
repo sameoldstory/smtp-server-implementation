@@ -102,7 +102,7 @@ TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
 
 	}
 	if (i == MAX_SESSIONS) {
-		//TODO: handle situation when number of sessions is exceeded
+// TODO: handle situation when number of sessions is exceeded
 	} else {
 		sessions[i] = new TCPSession(fd, *addr);
 		fdsets.AddSessionSock(fd);
@@ -141,7 +141,7 @@ void Server::ProcessSession(TCPSession* s_ptr, fd_set& readfds, fd_set& writefds
 			SMTPServerSession* tmp_ptr =
 				dynamic_cast<SMTPServerSession*>(s_ptr->GetSessionDriverPtr());
 			if (tmp_ptr) {
-				//TODO: here I should create SMTPClientSession
+// TODO: here I should create SMTPClientSession
 			}
 			DeleteSession(&s_ptr);
 		}
