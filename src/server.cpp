@@ -106,7 +106,6 @@ TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
 	} else {
 		sessions[i] = new TCPSession(fd, *addr);
 		fdsets.AddSessionSock(fd);
-		puts("Session added");
 	}
 	return sessions[i];
 }
@@ -119,7 +118,6 @@ void Server::DeleteSession(TCPSession** ptr)
 	shutdown(fd, SHUT_RDWR);
 	close(fd);
 	fdsets.DeleteSessionSock(fd);
-	puts("Session deleted");
 }
 
 void Server::PrepareSetsForSelect(fd_set* read, fd_set* write) const
@@ -128,9 +126,14 @@ void Server::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 	memcpy(write, &(fdsets.writefds), sizeof(fd_set));
 }
 
-void Server::ProcessSession(TCPSession* s_ptr, fd_set& readfds, fd_set& writefds)
+void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writefds)
 {
 	int fd = s_ptr->GetSocketDesc();
+
+	if (s_ptr && FD_ISSET(fd, &readfds)) {
+		s_ptr->ProcessReadOperation();
+		fdsets.SetWritefds(fd);
+	}
 
 	if (s_ptr->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
 		s_ptr->ProcessWriteOperation();
@@ -147,10 +150,6 @@ void Server::ProcessSession(TCPSession* s_ptr, fd_set& readfds, fd_set& writefds
 		}
 	}
 
-	if (s_ptr && FD_ISSET(fd, &readfds)) {
-		s_ptr->ProcessReadOperation();
-		fdsets.SetWritefds(fd);
-	}
 }
 
 void Server::MainLoop()

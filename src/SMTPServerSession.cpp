@@ -98,11 +98,19 @@ void MessageSaver::WriteTimeInfoToServiceFile(int fd) const
 void MessageSaver::WriteRecipientsInfoToServiceFile(int fd) const
 {
 	char buf[TEMP_BUF_SIZE];
-	Mailbox* tmp = session_info->recipients;
-	while (tmp) {
-		sprintf(buf, "%s %s %s\n", tmp->name, DEFAULT_DELIVERY_STATUS, tmp->GetOptionAsString());
+	Mailbox* box = session_info->recipients;
+	while (box) {
+		sprintf(buf, "%s %s %s", DEFAULT_DELIVERY_STATUS, box->GetOptionAsString(), box->name);
+
+		int len = strlen(buf);
+		for (int i = 0; i < box->param_numb; i++) {
+			sprintf(buf+len, " %s", box->params[i]);
+			len = strlen(buf);
+		}
+		sprintf(buf+len, "\n");
+
 		write(fd, buf, strlen(buf));
-		tmp = tmp->next;
+		box = box->next;
 	}
 }
 

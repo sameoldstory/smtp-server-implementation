@@ -48,7 +48,7 @@ short int TCPSession::ProcessReadOperation()
 		return 0;
 	}
 	buf[portion] = '\0';
-	//printf("Command: %s\n", buf);
+	printf("Command: %s\n", buf);
 	if (session_driver->HandleInput(portion, &(buf[0])))
 		need_to_write = true;
 	return 1;
@@ -57,7 +57,7 @@ short int TCPSession::ProcessReadOperation()
 short int TCPSession::ProcessWriteOperation()
 {
 	char* message = session_driver->GetMessage();
-	//printf("Response: %s\n", message);
+	printf("Response for fd %d: %s\n", fd, message);
 	return write(fd, message, strlen(message));
 }
 
