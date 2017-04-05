@@ -26,7 +26,8 @@ public:
 	char* GetHostname() const;
 	bool NeedsToBeClosed() const;
 	void ServeAsSMTPServerSession(ServerConfiguration* config_);
-	void ServeAsSMTPClientSession();
+	void ServeAsSMTPClientSession(char* ehlo, char* sender,
+		char* rcpt, int _fd);
 	// this is temporary method
 	TCPSessionDriver* GetSessionDriverPtr() {
 		return session_driver;

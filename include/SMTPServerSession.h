@@ -49,6 +49,7 @@ public:
 	MessageSaver(ServerSessionInfo*, const char*, char*, char*, char*);
 	void PrepareForMsgSaving();
 	void WriteLineToFile(char*);
+	char* GetFilename() {return filename;}
 	~MessageSaver();
 };
 
@@ -75,6 +76,7 @@ class SMTPServerSession: public SMTPSession {
 public:
 	SMTPServerSession(int, ServerConfiguration*, char*, char*);
 	char* GetMessage();
+	char* GetFilename() {return msg_saver.GetFilename();}
 	bool SessionFinished() {if (state == quit) return true; else return false;}
 	void EndSession();
 	bool HandleInput(int portion, char* buf);

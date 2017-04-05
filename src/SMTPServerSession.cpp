@@ -216,7 +216,6 @@ void SMTPServerSession::EndSession()
 // TODO: code SMTPServerSession::CorrectMail
 bool SMTPServerSession::CorrectMail(char*) const
 {
-
 	return true;
 }
 
@@ -233,8 +232,11 @@ bool SMTPServerSession::HandleInput(int portion, char* buf)
 {
 	in_buf.EatData(portion, buf);
 	if (state != datastart) {
-		need_to_write = true;
 		char* str = in_buf.ExtractUntilCRLF();
+		if (!str) {
+			return false;
+		}
+		need_to_write = true;
 		free(msg_for_client);
 		ProcessCommand(str);
 	} else {

@@ -1,9 +1,12 @@
 #include "TCPSession.h"
 #include "SMTPServerSession.h"
+#include "SMTPClientSession.h"
 #include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+
+//TODO rethink all need_to_write vars
 
 TCPSession::TCPSession(int fd_, sockaddr_in addr_):
 	fd(fd_), addr(addr_), need_to_write(true), session_driver(NULL)
@@ -69,7 +72,12 @@ void TCPSession::ServeAsSMTPServerSession(ServerConfiguration* config_)
  		SMTPServerSession(sizeof(buf), config_, GetHostname(), GetIpString());
 }
 
-void TCPSession::ServeAsSMTPClientSession()
+void TCPSession::ServeAsSMTPClientSession(char* ehlo, char* sender, char* rcpt,
+	int _fd)
 {
-
+	if (session_driver)
+ 		throw "TCPSession already provides some service";
+ 	session_driver = new
+ 		SMTPClientSession(sizeof(buf), ehlo, sender, rcpt, _fd);
+ 	need_to_write = false;
 }

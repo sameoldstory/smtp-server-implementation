@@ -10,6 +10,8 @@
 #include "exceptions.h"
 #include "server.h"
 #include "TCPSession.h"
+#include <netdb.h>
+#include <fcntl.h>
 // TODO: get rid of this include later, when queueManager class is ready
 #include "SMTPServerSession.h"
 
@@ -126,16 +128,20 @@ void Server::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 	memcpy(write, &(fdsets.writefds), sizeof(fd_set));
 }
 
+#define CLIENT_SMTP_SESSION_TEST
+
 void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writefds)
 {
 	int fd = s_ptr->GetSocketDesc();
 
 	if (s_ptr && FD_ISSET(fd, &readfds)) {
+		printf("Process Read %d\n", s_ptr->GetSocketDesc());
 		s_ptr->ProcessReadOperation();
 		fdsets.SetWritefds(fd);
 	}
 
 	if (s_ptr->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
+		printf("Process Write %d\n", s_ptr->GetSocketDesc());
 		s_ptr->ProcessWriteOperation();
 		fdsets.ClearWritefds(fd);
 		if (s_ptr->NeedsToBeClosed()) {
@@ -145,6 +151,49 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 				dynamic_cast<SMTPServerSession*>(s_ptr->GetSessionDriverPtr());
 			if (tmp_ptr) {
 // TODO: here I should create SMTPClientSession
+
+			#ifdef CLIENT_SMTP_SESSION_TEST
+				int port = 25;
+				char buf[1024];
+				const char* host = "alt4.aspmx.l.google.com";
+
+				const char* filename = tmp_ptr->GetFilename();
+				sprintf(buf, "../mail_queue/%s.env", filename);
+				int env = open(buf, O_RDONLY);
+				sprintf(buf, "../mail_queue/%s.msg", filename);
+				int msg = open(buf, O_RDONLY);
+
+				char sender[64], rcpt[64], *left, *right;
+				int n = read(env, buf, sizeof(buf)-1);
+				buf[n] = '\0';
+				left = strstr(buf, " ");
+				left += 1;
+				left = strstr(left, " ");
+				left += 1;
+				right = strstr(left, " ");
+				strncpy(sender, left, right-left);
+				sender[right-left] = '\0';
+				left = ++right;
+				strcpy(rcpt, left);
+				int len = strlen(rcpt);
+				rcpt[len-1] ='\0';
+				close(env);
+
+				int sock = socket(AF_INET, SOCK_STREAM, 0);
+				struct sockaddr_in addr;
+				struct hostent* host_ptr = gethostbyname(host);
+				addr.sin_family = AF_INET;
+				addr.sin_port = htons(port);
+				addr.sin_addr.s_addr = * (int32_t*) host_ptr->h_addr_list[0];
+				connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+
+				TCPSession* s = AddSession(&addr, sock);
+				//ehlo, sender, rcpt, _fd
+				char ehlo[] = "ceres.intelib.org";
+				s->ServeAsSMTPClientSession(ehlo, sender, rcpt, msg);
+				fdsets.ClearWritefds(sock);
+			#endif
+
 			}
 			DeleteSession(&s_ptr);
 		}
@@ -160,6 +209,7 @@ void Server::MainLoop()
 	for(;;) {
 
 		PrepareSetsForSelect(&readfds, &writefds);
+		printf("sets are updated\n");
 
 		int res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, NULL);
 		if (res < 1) {
@@ -174,8 +224,10 @@ void Server::MainLoop()
 		}
 
 		for (int i = 0; i < MAX_SESSIONS; i++) {
-			if (sessions[i])
+			if (sessions[i]) {
+				printf("process session with sock %d\n", sessions[i]->GetSocketDesc());
 				ProcessSession(sessions[i], readfds, writefds);
+			}
 		}
 	}
 }
