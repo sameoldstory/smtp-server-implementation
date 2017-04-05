@@ -178,19 +178,19 @@ void MessageSaver::PrepareForMsgSaving()
 	GenerateMessageFile();
 }
 
-void MessageSaver::WriteLineToFile(char* str)
+void MessageSaver::WriteLineToFile(const char* str)
 {
 	int len = strlen(str);
-	str[len] = '\n';
-	int err = write(msg_d, str, len+1);
-	if (err == -1)
+	int err1 = write(msg_d, str, len);
+	int err2 = write(msg_d, "\r\n", sizeof("\r\n")-1);
+	if (err1 == -1 || err2 == -1)
 		perror("MessageSaver::WriteLineToFile");
 }
 
-SMTPServerSession::SMTPServerSession(int buf_size, ServerConfiguration* config, char* host, char* ip):
-	in_buf(buf_size), mailbox_manager(&(config->mailbox_manager)), session_info(),
-	msg_saver(&session_info, config->GetQueuePath(), host, ip, config->GetServerName()),
-	need_to_write(true)
+SMTPServerSession::SMTPServerSession(int buf_size, ServerConfiguration* config,
+	char* host, char* ip): SMTPSession(true), in_buf(buf_size),
+	mailbox_manager(&(config->mailbox_manager)), session_info(),
+	msg_saver(&session_info, config->GetQueuePath(), host, ip, config->GetServerName())
 {
 	state = start;
 	msg_for_client = strdup(SMTP_GREETING);
@@ -365,7 +365,7 @@ void SMTPServerSession::ProcessEmail()
 			need_to_write = true;
 			free(msg_for_client);
 			msg_for_client = strdup("250 ok\r\n");
-			msg_saver.WriteLineToFile(str);
+			msg_saver.WriteLineToFile(".");
 			return;
 		}
 		msg_saver.WriteLineToFile(str);

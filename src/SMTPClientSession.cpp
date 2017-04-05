@@ -28,8 +28,8 @@ SessionArgs::SessionArgs(char* _ehlo, char* _sender, char* _rcpt)
 }
 
 SMTPClientSession::SMTPClientSession(int buf_size, char* ehlo, char* sender,
-	char* rcpt, int _fd): in_buf(CLIENT_SESSION_BUF_SIZE), args(ehlo, sender, rcpt), fd(_fd),
- 	state(start), need_to_write(false), message(NULL)
+	char* rcpt, int _fd): SMTPSession(false), in_buf(CLIENT_SESSION_BUF_SIZE), args(ehlo, sender, rcpt), fd(_fd),
+ 	state(start), message(NULL)
 {
 	printf("recipient string <%s>\n", rcpt);
 }
@@ -39,12 +39,13 @@ SMTPClientSession::~SMTPClientSession()
 	free(message);
 }
 
+//TODO somewhere in SMTPServerSession I write zero bytes to file, needs fix
 char* SMTPClientSession::GetMessage()
 {
 	char buf[1024];
 	need_to_write = false;
 	free(message);
-	int err;
+	int res;
 	switch(state) {
 	case start:
 	case end:
@@ -63,20 +64,24 @@ char* SMTPClientSession::GetMessage()
 		break;
 	case data:
 		message = strdup("DATA\r\n");
-		err = read(fd, next_msg, sizeof(next_msg));
-		if (err <= 0) {
+		res = read(fd, next_msg, sizeof(next_msg)-1);
+		if (res <= 0) {
 			state = quit;
 			GetMessage();
 		}
+		next_msg[res] = '\0';
 		break;
 	case data_message:
 		message = strdup(next_msg);
-		err = read(fd, next_msg, sizeof(next_msg));
-		if (err == -1) {
+		res = read(fd, next_msg, sizeof(next_msg)-1);
+		if (res == -1) {
 			state = quit;
 			GetMessage();
 		}
-		if (err != 0) {
+		if (res != 0) {
+			next_msg[res] = '\0';
+			int len = strlen(next_msg);
+			printf("Something is wrong here: strlen %d bytes read %d \n", len, res);
 			need_to_write = true;
 		}
 		break;
@@ -88,7 +93,7 @@ char* SMTPClientSession::GetMessage()
 	return message;
 }
 
-bool SMTPClientSession::SessionFinished()
+bool SMTPClientSession::SessionFinished() const
 {
 	if (state == end)
 		return true;
@@ -138,14 +143,12 @@ void SMTPClientSession::ProcessResponse(char* str)
 			state = mail;
 		return;
 	}
-	if (state != data_message) {
-		if (str[0] == '2') {
-			int int_state = int(state);
-			state = (client_state)++int_state;
-			return;
-		} else {
-			state = quit;
-			return;
-		}
+	if (str[0] == '2') {
+		int int_state = int(state);
+		state = (client_state)++int_state;
+		return;
+	} else {
+		state = quit;
+		return;
 	}
 }

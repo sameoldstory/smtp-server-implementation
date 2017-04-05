@@ -134,16 +134,12 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 {
 	int fd = s_ptr->GetSocketDesc();
 
-	if (s_ptr && FD_ISSET(fd, &readfds)) {
-		printf("Process Read %d\n", s_ptr->GetSocketDesc());
-		s_ptr->ProcessReadOperation();
-		fdsets.SetWritefds(fd);
-	}
-
 	if (s_ptr->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
 		printf("Process Write %d\n", s_ptr->GetSocketDesc());
 		s_ptr->ProcessWriteOperation();
-		fdsets.ClearWritefds(fd);
+		if (!s_ptr->NeedsToWrite()) {
+			fdsets.ClearWritefds(fd);
+		}
 		if (s_ptr->NeedsToBeClosed()) {
 // TODO: get rid of this block of code when class queueManager is ready
 // here I need to check what kind of driver is hidden inside TcpSession
@@ -188,7 +184,6 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 				connect(sock, (struct sockaddr*)&addr, sizeof(addr));
 
 				TCPSession* s = AddSession(&addr, sock);
-				//ehlo, sender, rcpt, _fd
 				char ehlo[] = "ceres.intelib.org";
 				s->ServeAsSMTPClientSession(ehlo, sender, rcpt, msg);
 				fdsets.ClearWritefds(sock);
@@ -196,6 +191,20 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 
 			}
 			DeleteSession(&s_ptr);
+		}
+	}
+
+	if (s_ptr && FD_ISSET(fd, &readfds)) {
+		printf("Process Read %d\n", s_ptr->GetSocketDesc());
+		int res = s_ptr->ProcessReadOperation();
+		if (s_ptr->NeedsToWrite()) {
+			fdsets.SetWritefds(fd);
+		} else {
+			fdsets.ClearWritefds(fd);
+		}
+		if (res == 0) {
+			DeleteSession(&s_ptr);
+			return;
 		}
 	}
 

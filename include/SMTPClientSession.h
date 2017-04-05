@@ -23,14 +23,13 @@ class SMTPClientSession: public SMTPSession {
 	SessionArgs args;
 	int fd;
 	client_state state;
-	bool need_to_write;
 	char* message;
 	char next_msg[CLIENT_SESSION_BUF_SIZE];
 	void ProcessResponse(char* str);
 public:
 	SMTPClientSession(int buf_size, char* ehlo, char* sender, char* rcpt, int _fd);
 	char* GetMessage();
-	bool SessionFinished();
+	bool SessionFinished() const;
 	void EndSession();
 	bool HandleInput(int portion, char* buf);
 	~SMTPClientSession();

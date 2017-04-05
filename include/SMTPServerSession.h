@@ -48,8 +48,8 @@ class MessageSaver {
 public:
 	MessageSaver(ServerSessionInfo*, const char*, char*, char*, char*);
 	void PrepareForMsgSaving();
-	void WriteLineToFile(char*);
-	char* GetFilename() {return filename;}
+	void WriteLineToFile(const char*);
+	char* GetFilename() const {return filename;}
 	~MessageSaver();
 };
 
@@ -58,7 +58,6 @@ class SMTPServerSession: public SMTPSession {
 	MailboxManager* mailbox_manager;
 	ServerSessionInfo session_info;
 	MessageSaver msg_saver;
-	bool need_to_write;
 	char* msg_for_client;
 	bool CorrectMail(char*) const;
 	char* ExtractFromAngleBrackets(char*) const;
@@ -76,8 +75,8 @@ class SMTPServerSession: public SMTPSession {
 public:
 	SMTPServerSession(int, ServerConfiguration*, char*, char*);
 	char* GetMessage();
-	char* GetFilename() {return msg_saver.GetFilename();}
-	bool SessionFinished() {if (state == quit) return true; else return false;}
+	char* GetFilename() const {return msg_saver.GetFilename();}
+	bool SessionFinished() const {if (state == quit) return true; else return false;}
 	void EndSession();
 	bool HandleInput(int portion, char* buf);
 	~SMTPServerSession();

@@ -9,7 +9,7 @@
 //TODO rethink all need_to_write vars
 
 TCPSession::TCPSession(int fd_, sockaddr_in addr_):
-	fd(fd_), addr(addr_), need_to_write(true), session_driver(NULL)
+	fd(fd_), addr(addr_), session_driver(NULL)
 {
 
 }
@@ -36,11 +36,16 @@ bool TCPSession::NeedsToBeClosed() const
 	return session_driver->SessionFinished();
 }
 
+bool TCPSession::NeedsToWrite() const
+{
+	return session_driver->NeedsToWrite();
+}
+
 //return values are just like in read system call
 
 short int TCPSession::ProcessReadOperation()
 {
-	int portion = read(fd, &(buf[0]), BUF_SIZE_SERV);
+	int portion = read(fd, buf, sizeof(buf)-1);
 	if (portion == -1) {
 		printf("Reading error: session %d\n", fd);
 		return -1;
@@ -52,8 +57,7 @@ short int TCPSession::ProcessReadOperation()
 	}
 	buf[portion] = '\0';
 	printf("Command: %s\n", buf);
-	if (session_driver->HandleInput(portion, &(buf[0])))
-		need_to_write = true;
+	session_driver->HandleInput(portion, buf);
 	return 1;
 }
 
@@ -79,5 +83,4 @@ void TCPSession::ServeAsSMTPClientSession(char* ehlo, char* sender, char* rcpt,
  		throw "TCPSession already provides some service";
  	session_driver = new
  		SMTPClientSession(sizeof(buf), ehlo, sender, rcpt, _fd);
- 	need_to_write = false;
 }
