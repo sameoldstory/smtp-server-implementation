@@ -24,15 +24,19 @@ void ParseBuffer::PrintData()
 	printf("%s\n", data);
 }
 
+void ParseBuffer::Resize()
+{
+	maxlen += maxlen;
+	char* tmp = new char[maxlen];
+	memcpy(tmp, data, len);
+	delete[] data;
+	data = tmp;
+}
+
 void ParseBuffer::EatData(int portion, char* buf)
 {
-	if (len+portion > maxlen) {
-		maxlen += maxlen;
-		char* tmp = new char[maxlen];
-		memcpy(tmp, data, len);
-		delete[] data;
-		data = tmp;
-	}
+	if (len+portion > maxlen)
+		Resize();
 	memcpy(data+len, buf, portion);
 	len = len + portion;
 }
@@ -56,6 +60,21 @@ char* ParseBuffer::ExtractUntilCRLF()
 	}
 	return NULL;
 }
+
+/*
+char* ParseBuffer::GetAllAvailableData()
+{
+	if (len == 0)
+		return NULL;
+	if (len == maxlen)
+		Resize();
+	data[len] = '\0';
+	delete[] ret_string;
+	ret_string = NULL;
+	len = 0;
+	return data;
+}
+*/
 
 char* ParseBuffer::ExtractUntilEOL()
 {

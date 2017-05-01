@@ -31,7 +31,6 @@ SMTPClientSession::SMTPClientSession(int buf_size, char* ehlo, char* sender,
 	char* rcpt, int _fd): SMTPSession(false), in_buf(CLIENT_SESSION_BUF_SIZE), args(ehlo, sender, rcpt), fd(_fd),
  	state(start), message(NULL)
 {
-	printf("recipient string <%s>\n", rcpt);
 }
 
 SMTPClientSession::~SMTPClientSession()
@@ -81,7 +80,6 @@ char* SMTPClientSession::GetMessage()
 		if (res != 0) {
 			next_msg[res] = '\0';
 			int len = strlen(next_msg);
-			printf("Something is wrong here: strlen %d bytes read %d \n", len, res);
 			need_to_write = true;
 		}
 		break;
@@ -122,7 +120,6 @@ bool SMTPClientSession::HandleInput(int portion, char* buf)
 
 void SMTPClientSession::ProcessResponse(char* str)
 {
-	printf("In ProcessResponse\n");
 	if (state == data) {
 		if (strncmp(str, "354", sizeof("354"))) {
 			int int_state = int(state);

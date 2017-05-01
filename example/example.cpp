@@ -8,7 +8,9 @@ int main(int argc, char** argv) {
 		puts("Specify parameters: -c configname");
 		return -1;
 	}
-	Server serv(cl_args.GetConfigPath());
+	ServerConfiguration config(cl_args.GetConfigPath());
+	config.Configure();
+	Server serv(config);
 	serv.Run();
 	return 0;
 }

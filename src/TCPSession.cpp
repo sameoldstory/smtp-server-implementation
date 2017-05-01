@@ -6,8 +6,6 @@
 #include <unistd.h>
 #include <string.h>
 
-//TODO rethink all need_to_write vars
-
 TCPSession::TCPSession(int fd_, sockaddr_in addr_):
 	fd(fd_), addr(addr_), session_driver(NULL)
 {

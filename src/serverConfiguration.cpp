@@ -24,7 +24,7 @@ Mailbox::~Mailbox()
 	free(name);
 	if (params) {
 		for (int i = 0; i < param_numb; i++)
-			delete[] params[i];
+			free(params[i]);
 	}
 	delete[] params;
 }
@@ -43,6 +43,7 @@ MailboxManager::MailboxManager(): mailboxes(NULL)
 MailboxManager::~MailboxManager()
 {
 	Mailbox* tmp;
+
 	while(mailboxes) {
 		tmp = mailboxes->next;
 		delete mailboxes;
@@ -128,7 +129,7 @@ void MailboxManager::AddMailbox(char* name, char* opt_line, ParseBuffer& buf)
 }
 
 ServerConfiguration::ServerConfiguration(char* config_path_):
-	fd(-1), port(-1), buf(CONFIG_BUF_SIZE), server(NULL), domain(NULL),
+	fd(-1), port(-1), timeout(0), buf(CONFIG_BUF_SIZE), server(NULL), domain(NULL),
 	queue_path(NULL), mailbox_manager()
 {
 	config_path = strdup(config_path_);
@@ -146,7 +147,7 @@ int ServerConfiguration::ConvertStringToNumber(char* port_str) const
 {
 	int len = strlen(port_str);
 	if (len == 0)
-		throw ConfigError("Port was not specified");
+		throw ConfigError("Numeric parameter was not specified");
 	bool digits_only = true;
 	for (int i = 0; i < len; i++)
 		if ((port_str[i] > '9') || (port_str[i] < '0'))
@@ -154,8 +155,8 @@ int ServerConfiguration::ConvertStringToNumber(char* port_str) const
 	if (digits_only == true)
 		return atoi(port_str);
 	else
-		throw ConfigError("Incorrect symbols were used to specify port");
-	throw ConfigError("Port was not specified");
+		throw ConfigError("Incorrect symbols were used to specify numeric parameter");
+	throw ConfigError("Numeric parameter was not specified");
 }
 
 bool ServerConfiguration::OpenConfig()
@@ -196,6 +197,10 @@ void ServerConfiguration::ExtractInfoFromConfig()
 				if (word && !strcmp(word, "port")) {
 					word = buf.ExtractWordFromLine(line);
 					port = ConvertStringToNumber(word);
+				}
+				if (word && !strcmp(word, "select_timeout")) {
+					word = buf.ExtractWordFromLine(line);
+					timeout = ConvertStringToNumber(word);
 				} else if (word && !strcmp(word, "server_name")) {
 					word = buf.ExtractWordFromLine(line);
 					server = strdup(word);
@@ -226,5 +231,17 @@ void ServerConfiguration::ExtractInfoFromConfig()
 		perror(config_path);
 		exit(1);
 	}
+}
+
+void ServerConfiguration::Configure()
+{
+	if (!config_path) {
+		throw ConfigError("Server can't be launched: specify path for configuration file with -c key\n");
+	}
+	if (!OpenConfig()) {
+		throw ConfigError("Config file can not be opened\n");
+	}
+	ExtractInfoFromConfig();
+	CloseConfig();
 }
 

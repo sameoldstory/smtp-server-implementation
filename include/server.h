@@ -3,8 +3,11 @@
 
 #include "serverConfiguration.h"
 #include <arpa/inet.h>
+#include <sys/time.h>
+#include "queueManager.h"
 
 class TCPSession;
+
 
 struct ReadyIndicators {
 	int max_fd;
@@ -23,21 +26,23 @@ class Server {
 	int port;
 	sockaddr_in address;
 	TCPSession** sessions;
-	ServerConfiguration config;
+	ServerConfiguration& config;
 	ReadyIndicators fdsets;
-	void ConfigureServer();
+	QueueManager queue_manager;
+	struct timeval check_queue_t;
+	struct timeval tm;
+	void SetCheckTime();
 	void CreateListeningSocket();
 	void PrepareSetsForSelect(fd_set* read, fd_set* write) const;
-	// TODO: this method should be moved to QueueManager later
-	void CreateMailQueueDir();
 	void ProcessSession(TCPSession*& s_ptr, fd_set& readfds, fd_set& writefds);
 	void MainLoop();
 	int AcceptConnection(sockaddr_in* cl_addr);
+	int ConnectToHost(sockaddr_in* cl_addr, char* host);
 	TCPSession* AddSession(sockaddr_in* addr, int fd);
 	void DeleteSession(TCPSession**);
 	void EmptyAllocatedMemory();
 public:
-	Server(char* config_path);
+	Server(ServerConfiguration& _config);
 	void Run();
 	~Server();
 };

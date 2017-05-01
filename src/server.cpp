@@ -3,7 +3,6 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <sys/select.h>
-#include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
@@ -12,6 +11,7 @@
 #include "TCPSession.h"
 #include <netdb.h>
 #include <fcntl.h>
+#include "timeval.h"
 // TODO: get rid of this include later, when queueManager class is ready
 #include "SMTPServerSession.h"
 
@@ -57,9 +57,10 @@ void ReadyIndicators::SetWritefds(int sock)
 	FD_SET(sock, &writefds);
 }
 
-Server::Server(char* conf_path): listening_sock(-1), port(-1),
-	sessions(NULL), config(conf_path), fdsets()
+Server::Server(ServerConfiguration& _config): listening_sock(-1), port(-1),
+	sessions(NULL), config(_config), fdsets()
 {
+	SetCheckTime();
 	sessions = new TCPSession*[MAX_SESSIONS];
 	for (int i = 0; i < MAX_SESSIONS; i++)
 		sessions[i] = NULL;
@@ -95,6 +96,17 @@ int Server::AcceptConnection(sockaddr_in* addr)
 	if (fd == -1)
 		throw "Accept Failed";
 	return fd;
+}
+
+int Server::ConnectToHost(sockaddr_in* cl_addr, char* host)
+{
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	struct sockaddr_in addr;
+	struct hostent* host_ptr = gethostbyname(host);
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(port);
+	addr.sin_addr.s_addr = * (int32_t*) host_ptr->h_addr_list[0];
+	return connect(sock, (struct sockaddr*)&addr, sizeof(addr));
 }
 
 TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
@@ -175,6 +187,8 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 				rcpt[len-1] ='\0';
 				close(env);
 
+				// ConnectToHost
+
 				int sock = socket(AF_INET, SOCK_STREAM, 0);
 				struct sockaddr_in addr;
 				struct hostent* host_ptr = gethostbyname(host);
@@ -210,21 +224,47 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 
 }
 
+void Server::SetCheckTime()
+{
+	gettimeofday(&check_queue_t, NULL);
+	check_queue_t.tv_sec += config.GetTimeout();
+	timeval_subtract_curr_t(&check_queue_t, &tm);
+}
+
 void Server::MainLoop()
 {
 	fd_set readfds, writefds;
 	sockaddr_in addr;
+	//struct timeval tm = {0, 0};
+	int res;
 
 	for(;;) {
 
 		PrepareSetsForSelect(&readfds, &writefds);
-		printf("sets are updated\n");
+		/*
+		res = timeval_subtract_curr_t(&check_queue_t, &tm);
+		printf("check queue, sec: %lu usec: %d\n", check_queue_t.tv_sec, check_queue_t.tv_usec);
+		printf("sec: %lu usec: %d\n", tm.tv_sec, tm.tv_usec);
+		if (res == 1) {
+			// call QueueManager
+			SetCheckTime();
+		}
 
-		int res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, NULL);
-		if (res < 1) {
+		res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, &tm);
+		*/
+		res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, NULL);
+		if (res == -1) {
 			perror("select");
+			printf("sec: %lu usec: %d\n", tm.tv_sec, tm.tv_usec);
 			return;
 		}
+
+		if (res == 0) {
+			// call QueueManager
+			SetCheckTime();
+		}
+
+
 
 		if (FD_ISSET(listening_sock, &readfds)) {
 			int fd = AcceptConnection(&addr);
@@ -241,42 +281,15 @@ void Server::MainLoop()
 	}
 }
 
-void Server::ConfigureServer()
-{
-	if (!config.GetConfigPath()) {
-		printf("Server can't be launched: specify path for configuration file with -c key\n");
-		throw FatalException();
-	}
-	if (!config.OpenConfig()) {
-		printf("Config file can not be opened\n");
-		throw FatalException();
-	}
-	config.ExtractInfoFromConfig();
-	config.CloseConfig();
-}
-
-void Server::CreateMailQueueDir()
-{
-	char* path = config.GetQueuePath();
-	int res = mkdir(path, 0700);
-	if (res == -1) {
-		if (errno == EEXIST)
-			puts("CreateMailQueueDir: already exists");
-		else {
-			puts("Could not create directory for Mail Queue");
-			throw FatalException();
-		}
-	}
-}
-
 void Server::Run()
 {
 	try {
-		ConfigureServer();
 		port = config.GetPort();
 		CreateListeningSocket();
 		fdsets.AddListeningSock(listening_sock);
-		CreateMailQueueDir();
+		char* path = config.GetQueuePath();
+		queue_manager.SetQueuePath(path);
+		queue_manager.CreateMailQueueDir();
 		MainLoop();
 
 	} catch(const char* s) {
@@ -284,6 +297,9 @@ void Server::Run()
 	}
 	catch(FatalException e) {
 		printf("Fatal exception caught\n");
+	}
+	catch(ConfigError e) {
+		printf("ConfigError\n");
 	}
 	catch(...){
 		printf("Unknown error occured\n");

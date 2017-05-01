@@ -11,7 +11,7 @@ struct Mailbox {
 	char** params;
 	Mailbox* next;
 	Mailbox(char* name_, mail_option opt, int numb, char** params_ = 0):
-		name(name_), option(opt), param_numb(numb), params(params_) {}
+		name(name_), option(opt), param_numb(numb), params(params_), next(0) {}
 	Mailbox(const Mailbox& box);
 	const char* GetOptionAsString() const;
 	~Mailbox();
@@ -33,19 +33,21 @@ class ServerConfiguration {
 	char* config_path;
 	int fd;
 	int port;
+	int timeout;
 	ParseBuffer buf;
 	char* server;
 	char* domain;
 	char* queue_path;
 	int ConvertStringToNumber(char* port_str) const;
-public:
-	MailboxManager mailbox_manager;
-	ServerConfiguration(char* config_path_);
-	char* GetConfigPath() const {return config_path;};
 	bool OpenConfig();
 	void ExtractInfoFromConfig();
 	bool CloseConfig();
+public:
+	MailboxManager mailbox_manager;
+	ServerConfiguration(char* config_path_);
+	void Configure();
 	int GetPort() const {return port;}
+	int GetTimeout() const {return timeout;}
 	char* GetServerName() const {return server;}
 	char* GetDomainName() const {return domain;}
 	char* GetQueuePath() const {return queue_path;}
