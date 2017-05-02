@@ -7,14 +7,15 @@
 class MailboxManager;
 class ServerConfiguration;
 struct Mailbox;
+class QueueManager;
 
-struct ServerSessionInfo {
+struct SMTPSessionInfo {
 	char* client_domain;
 	char* mail_from;
 	Mailbox* recipients;
 	void AddRecipient(Mailbox* box);
-	ServerSessionInfo();
-	~ServerSessionInfo();
+	SMTPSessionInfo();
+	~SMTPSessionInfo();
 };
 
 struct SenderInfo {
@@ -24,16 +25,12 @@ struct SenderInfo {
 	~SenderInfo();
 };
 
-//TODO: MessageSaver should be moved to queueManager
-
 class MessageSaver {
-	static int counter;
+	QueueManager& queue_manager;
 	SenderInfo sender_info;
-	ServerSessionInfo* session_info;
+	SMTPSessionInfo* session_info;
 	int msg_d;
-	char* queue_path;
 	char* filename;
-	char* server_name;
 	int OpenFile(const char*) const;
 	void WriteTimeInfoToServiceFile(int) const;
 	void WriteRecipientsInfoToServiceFile(int) const;
@@ -46,17 +43,17 @@ class MessageSaver {
 	void AddForLineToReceive(char*&) const;
 	void AddDateLineToReceive(char*&, int) const;
 public:
-	MessageSaver(ServerSessionInfo*, const char*, char*, char*, char*);
+	MessageSaver(QueueManager& _queue_manager, SMTPSessionInfo*, char*, char*);
 	void PrepareForMsgSaving();
 	void WriteLineToFile(const char*);
+	Mailbox* GetMailbox(char* name);
 	char* GetFilename() const {return filename;}
 	~MessageSaver();
 };
 
 class SMTPServerSession: public SMTPSession {
 	ParseBuffer in_buf;
-	MailboxManager* mailbox_manager;
-	ServerSessionInfo session_info;
+	SMTPSessionInfo session_info;
 	MessageSaver msg_saver;
 	char* msg_for_client;
 	bool CorrectMail(char*) const;
@@ -73,7 +70,7 @@ class SMTPServerSession: public SMTPSession {
 		start, helo, mail, rcpt, datastart, datafinish, quit
 	} state;
 public:
-	SMTPServerSession(int, ServerConfiguration*, char*, char*);
+	SMTPServerSession(QueueManager& _queue_manager, int, char*, char*);
 	char* GetMessage();
 	char* GetFilename() const {return msg_saver.GetFilename();}
 	bool SessionFinished() const {if (state == quit) return true; else return false;}

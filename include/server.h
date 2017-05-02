@@ -42,7 +42,7 @@ class Server {
 	void DeleteSession(TCPSession**);
 	void EmptyAllocatedMemory();
 public:
-	Server(ServerConfiguration& _config);
+	Server(ServerConfiguration& _config, char* queue_path, char* server_name);
 	void Run();
 	~Server();
 };

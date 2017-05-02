@@ -1,5 +1,6 @@
 #include "SMTPServerSession.h"
 #include "serverConfiguration.h"
+#include "queueManager.h"
 #include <ctype.h>
 #include <unistd.h>
 #include <string.h>
@@ -15,8 +16,6 @@
 #define TIME_STEP 60
 #define DEFAULT_DELIVERY_STATUS "new"
 
-int MessageSaver::counter = 0;
-
 SenderInfo::SenderInfo(char* _host, char* _ip)
 {
 	host = strdup(_host);
@@ -29,13 +28,13 @@ SenderInfo::~SenderInfo()
 	free(ip_addr);
 }
 
-ServerSessionInfo::ServerSessionInfo(): client_domain(NULL),
+SMTPSessionInfo::SMTPSessionInfo(): client_domain(NULL),
 	mail_from(NULL), recipients(NULL)
 {
 
 }
 
-ServerSessionInfo::~ServerSessionInfo()
+SMTPSessionInfo::~SMTPSessionInfo()
 {
 	free(client_domain);
 	free(mail_from);
@@ -47,31 +46,35 @@ ServerSessionInfo::~ServerSessionInfo()
 	}
 }
 
-void ServerSessionInfo::AddRecipient(Mailbox* box)
+void SMTPSessionInfo::AddRecipient(Mailbox* box)
 {
 	Mailbox* new_box = new Mailbox(*box);
 	new_box->next = recipients;
 	recipients = new_box;
 }
 
-MessageSaver::MessageSaver(ServerSessionInfo* _info, const char* _path, char* host, char* ip, char* serv_name):
-	sender_info(host, ip), session_info(_info), msg_d(-1), filename(0), server_name(serv_name)
+MessageSaver::MessageSaver(QueueManager& _queue_manager, SMTPSessionInfo* _info, char* host, char* ip):
+	queue_manager(_queue_manager), sender_info(host, ip), session_info(_info), msg_d(-1), filename(0)
 {
-	queue_path = strdup(_path);
-	counter++;
+	queue_manager.counter++;
 }
 
 MessageSaver::~MessageSaver()
 {
 	free(filename);
-	free(queue_path);
+	free(queue_manager.path);
 	close(msg_d);
+}
+
+Mailbox* MessageSaver::GetMailbox(char* name)
+{
+	return queue_manager.mailboxes.GetMailbox(name);
 }
 
 void MessageSaver::GenerateFileName()
 {
 	char buf[TEMP_BUF_SIZE];
-	sprintf(buf, "%lu_%d", time(NULL), counter);
+	sprintf(buf, "%lu_%d", time(NULL), queue_manager.counter);
 	int len = strlen(buf)+1;
 	free(filename);
 	filename = (char*)malloc(len);
@@ -81,7 +84,7 @@ void MessageSaver::GenerateFileName()
 int MessageSaver::OpenFile(const char* extension) const
 {
 	char buf[TEMP_BUF_SIZE];
-	sprintf(buf, "%s%s.%s", queue_path, filename, extension);
+	sprintf(buf, "%s%s.%s", queue_manager.path, filename, extension);
 	int fd = open(buf, O_CREAT|O_WRONLY);
 	if (fd == -1)
 		throw "MessageSaver::OpenFile: could not open file";
@@ -140,7 +143,7 @@ void MessageSaver::AddFromLineToReceive(char* & buf) const
 void MessageSaver::AddByLineToReceive(char* & buf) const
 {
 	sprintf(buf, "\tby %s (Ceres) with ESMTP id %d",
-		server_name, counter);
+		queue_manager.server_name, queue_manager.counter);
 	buf += strlen(buf);
 }
 
@@ -187,10 +190,10 @@ void MessageSaver::WriteLineToFile(const char* str)
 		perror("MessageSaver::WriteLineToFile");
 }
 
-SMTPServerSession::SMTPServerSession(int buf_size, ServerConfiguration* config,
+SMTPServerSession::SMTPServerSession(QueueManager& _queue_manager, int buf_size,
 	char* host, char* ip): SMTPSession(true), in_buf(buf_size),
-	mailbox_manager(&(config->mailbox_manager)), session_info(),
-	msg_saver(&session_info, config->GetQueuePath(), host, ip, config->GetServerName())
+	session_info(),
+	msg_saver(_queue_manager, &session_info, host, ip)
 {
 	state = start;
 	msg_for_client = strdup(SMTP_GREETING);
@@ -333,7 +336,7 @@ void SMTPServerSession::ProcessRcpt(char* str)
 		msg_for_client = strdup("501 Wrong syntax for RCPT command\r\n");
 		return;
 	}
-	Mailbox* box = mailbox_manager->GetMailbox(word);
+	Mailbox* box = msg_saver.GetMailbox(word);
 	if (!box) {
 		msg_for_client = strdup("550 User not found\r\n");
 	} else {

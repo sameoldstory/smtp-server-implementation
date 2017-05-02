@@ -9,6 +9,8 @@ class ServerConfiguration;
 
 class TCPSessionDriver;
 
+class QueueManager;
+
 class TCPSession {
 	int fd;
 	sockaddr_in addr;
@@ -23,7 +25,7 @@ public:
 	char* GetIpString() const;
 	char* GetHostname() const;
 	bool NeedsToBeClosed() const;
-	void ServeAsSMTPServerSession(ServerConfiguration* config_);
+	void ServeAsSMTPServerSession(QueueManager& _queue_manager);
 	void ServeAsSMTPClientSession(char* ehlo, char* sender,
 		char* rcpt, int _fd);
 	// this is temporary method

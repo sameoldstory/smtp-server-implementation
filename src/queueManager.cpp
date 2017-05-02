@@ -6,24 +6,20 @@
 #include <string.h>
 #include <stdlib.h>
 
-QueueManager::QueueManager(): queue_path(NULL)
+QueueManager::QueueManager(char* _path, char* _server_name, MailboxManager& _manager):
+	counter(0), path(_path), server_name(_server_name), mailboxes(_manager)
 {
 
 }
 
 QueueManager::~QueueManager()
 {
-	free(queue_path);
-}
-
-void QueueManager::SetQueuePath(char* path)
-{
-	queue_path = strdup(path);
+	free(path);
 }
 
 void QueueManager::CreateMailQueueDir()
 {
-	int res = mkdir(queue_path, 0700);
+	int res = mkdir(path, 0700);
 	if (res == -1) {
 		if (errno == EEXIST)
 			puts("CreateMailQueueDir: already exists");
@@ -34,5 +30,12 @@ void QueueManager::CreateMailQueueDir()
 	}
 }
 
+void QueueManager::TrySendingMessage()
+{
 
+}
 
+void QueueManager::GoThroughQueue()
+{
+
+}

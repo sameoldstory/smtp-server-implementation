@@ -66,12 +66,12 @@ short int TCPSession::ProcessWriteOperation()
 	return write(fd, message, strlen(message));
 }
 
-void TCPSession::ServeAsSMTPServerSession(ServerConfiguration* config_)
+void TCPSession::ServeAsSMTPServerSession(QueueManager& _queue_manager)
 {
  	if (session_driver)
  		throw "TCPSession already provides some service";
  	session_driver = new
- 		SMTPServerSession(sizeof(buf), config_, GetHostname(), GetIpString());
+ 		SMTPServerSession(_queue_manager, sizeof(buf), GetHostname(), GetIpString());
 }
 
 void TCPSession::ServeAsSMTPClientSession(char* ehlo, char* sender, char* rcpt,

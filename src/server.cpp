@@ -57,8 +57,9 @@ void ReadyIndicators::SetWritefds(int sock)
 	FD_SET(sock, &writefds);
 }
 
-Server::Server(ServerConfiguration& _config): listening_sock(-1), port(-1),
-	sessions(NULL), config(_config), fdsets()
+Server::Server(ServerConfiguration& _config, char* path, char* server_name):
+	listening_sock(-1), port(-1), sessions(NULL), config(_config), fdsets(),
+	queue_manager(path, server_name, _config.mailbox_manager)
 {
 	SetCheckTime();
 	sessions = new TCPSession*[MAX_SESSIONS];
@@ -264,12 +265,10 @@ void Server::MainLoop()
 			SetCheckTime();
 		}
 
-
-
 		if (FD_ISSET(listening_sock, &readfds)) {
 			int fd = AcceptConnection(&addr);
 			TCPSession* s = AddSession(&addr, fd);
-			s->ServeAsSMTPServerSession(&config);
+			s->ServeAsSMTPServerSession(queue_manager);
 		}
 
 		for (int i = 0; i < MAX_SESSIONS; i++) {
@@ -287,8 +286,6 @@ void Server::Run()
 		port = config.GetPort();
 		CreateListeningSocket();
 		fdsets.AddListeningSock(listening_sock);
-		char* path = config.GetQueuePath();
-		queue_manager.SetQueuePath(path);
 		queue_manager.CreateMailQueueDir();
 		MainLoop();
 

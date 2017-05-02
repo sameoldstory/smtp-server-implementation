@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
 	}
 	ServerConfiguration config(cl_args.GetConfigPath());
 	config.Configure();
-	Server serv(config);
+	Server serv(config, config.GetQueuePath(), config.GetServerName());
 	serv.Run();
 	return 0;
 }
