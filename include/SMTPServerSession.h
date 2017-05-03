@@ -48,6 +48,7 @@ public:
 	void WriteLineToFile(const char*);
 	Mailbox* GetMailbox(char* name);
 	char* GetFilename() const {return filename;}
+	void FinishSaving();
 	~MessageSaver();
 };
 

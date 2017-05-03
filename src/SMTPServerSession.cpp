@@ -190,6 +190,16 @@ void MessageSaver::WriteLineToFile(const char* str)
 		perror("MessageSaver::WriteLineToFile");
 }
 
+void MessageSaver::FinishSaving()
+{
+	try {
+		queue_manager.ProcessMessage(filename);
+	}
+	catch(char* err) {
+		printf("Exception: %s\n", err);
+	}
+}
+
 SMTPServerSession::SMTPServerSession(QueueManager& _queue_manager, int buf_size,
 	char* host, char* ip): SMTPSession(true), in_buf(buf_size),
 	session_info(),
@@ -380,5 +390,6 @@ void SMTPServerSession::ProcessQuit(char* str)
 {
 	state = quit;
 	msg_for_client = strdup("221 Closing connection\r\n");
+	msg_saver.FinishSaving();
 }
 
