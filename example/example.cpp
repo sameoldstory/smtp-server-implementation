@@ -1,4 +1,4 @@
-#include "server.h"
+#include "mainLoop.h"
 #include "commandLineArgs.h"
 #include <stdio.h>
 
@@ -10,7 +10,8 @@ int main(int argc, char** argv) {
 	}
 	ServerConfiguration config(cl_args.GetConfigPath());
 	config.Configure();
-	Server serv(config, config.GetQueuePath(), config.GetServerName());
-	serv.Run();
+	MainLoop main_loop(config, config.GetQueuePath(), config.GetServerName());
+	main_loop.Prepare();
+	main_loop.Run();
 	return 0;
 }

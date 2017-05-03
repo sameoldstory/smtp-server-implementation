@@ -8,7 +8,6 @@
 
 class TCPSession;
 
-
 struct ReadyIndicators {
 	int max_fd;
 	fd_set readfds;
@@ -22,28 +21,17 @@ struct ReadyIndicators {
 };
 
 class Server {
-	int listening_sock;
-	int port;
-	sockaddr_in address;
 	TCPSession** sessions;
 	ServerConfiguration& config;
-	ReadyIndicators fdsets;
-	QueueManager queue_manager;
-	struct timeval check_queue_t;
-	struct timeval tm;
-	void SetCheckTime();
-	void CreateListeningSocket();
-	void PrepareSetsForSelect(fd_set* read, fd_set* write) const;
-	void ProcessSession(TCPSession*& s_ptr, fd_set& readfds, fd_set& writefds);
-	void MainLoop();
-	int AcceptConnection(sockaddr_in* cl_addr);
 	int ConnectToHost(sockaddr_in* cl_addr, char* host);
-	TCPSession* AddSession(sockaddr_in* addr, int fd);
 	void DeleteSession(TCPSession**);
-	void EmptyAllocatedMemory();
+	void ProcessSession(TCPSession*& s_ptr, fd_set& readfds, fd_set& writefds);
 public:
-	Server(ServerConfiguration& _config, char* queue_path, char* server_name);
-	void Run();
+	ReadyIndicators fdsets;
+	Server(ServerConfiguration& _config);
+	int AcceptConnection(sockaddr_in* cl_addr, int sock);
+	TCPSession* AddSession(sockaddr_in* addr, int fd);
+	void IterateThroughSessions(fd_set& readfds, fd_set& writefds);
 	~Server();
 };
 

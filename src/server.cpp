@@ -2,7 +2,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
-#include <sys/select.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
@@ -17,7 +16,6 @@
 
 class SMTPServerSession;
 
-#define DEFAULT_BACKLOG 5
 #define MAX_SESSIONS 16
 
 ReadyIndicators::ReadyIndicators()
@@ -57,43 +55,30 @@ void ReadyIndicators::SetWritefds(int sock)
 	FD_SET(sock, &writefds);
 }
 
-Server::Server(ServerConfiguration& _config, char* path, char* server_name):
-	listening_sock(-1), port(-1), sessions(NULL), config(_config), fdsets(),
-	queue_manager(path, server_name, _config.mailbox_manager)
+
+Server::Server(ServerConfiguration& _config):
+	sessions(NULL), config(_config), fdsets()
 {
-	SetCheckTime();
 	sessions = new TCPSession*[MAX_SESSIONS];
 	for (int i = 0; i < MAX_SESSIONS; i++)
 		sessions[i] = NULL;
 }
 
-void Server::CreateListeningSocket()
+void Server::IterateThroughSessions(fd_set& readfds, fd_set& writefds)
 {
-	address.sin_family = AF_INET;
-	address.sin_port = htons(port);
-	address.sin_addr.s_addr = INADDR_ANY;
+	for (int i = 0; i < MAX_SESSIONS; i++) {
+		if (sessions[i]) {
+			printf("process session with sock %d\n", sessions[i]->GetSocketDesc());
+			ProcessSession(sessions[i], readfds, writefds);
+		}
+	}
 
-	listening_sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (listening_sock == -1) {
-		perror("socket");
-		throw FatalException();
-	}
-	int opt = 1;
-	setsockopt(listening_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	if (bind(listening_sock, (sockaddr*) &address, sizeof(address))) {
-		perror("bind");
-		throw FatalException();
-	}
-	if (listen(listening_sock, DEFAULT_BACKLOG) == -1) {
-		perror("listen");
-		throw FatalException();
-	}
 }
 
-int Server::AcceptConnection(sockaddr_in* addr)
+int Server::AcceptConnection(sockaddr_in* addr, int sock)
 {
 	socklen_t size = INET_ADDRSTRLEN;
-	int fd = accept(listening_sock, (sockaddr*) addr, &size);
+	int fd = accept(sock, (sockaddr*) addr, &size);
 	if (fd == -1)
 		throw "Accept Failed";
 	return fd;
@@ -101,6 +86,7 @@ int Server::AcceptConnection(sockaddr_in* addr)
 
 int Server::ConnectToHost(sockaddr_in* cl_addr, char* host)
 {
+	/*
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in addr;
 	struct hostent* host_ptr = gethostbyname(host);
@@ -108,6 +94,7 @@ int Server::ConnectToHost(sockaddr_in* cl_addr, char* host)
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = * (int32_t*) host_ptr->h_addr_list[0];
 	return connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+	*/
 }
 
 TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
@@ -134,14 +121,6 @@ void Server::DeleteSession(TCPSession** ptr)
 	close(fd);
 	fdsets.DeleteSessionSock(fd);
 }
-
-void Server::PrepareSetsForSelect(fd_set* read, fd_set* write) const
-{
-	memcpy(read, &(fdsets.readfds), sizeof(fd_set));
-	memcpy(write, &(fdsets.writefds), sizeof(fd_set));
-}
-
-#define CLIENT_SMTP_SESSION_TEST
 
 void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writefds)
 {
@@ -225,98 +204,11 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 
 }
 
-void Server::SetCheckTime()
-{
-	gettimeofday(&check_queue_t, NULL);
-	check_queue_t.tv_sec += config.GetTimeout();
-	timeval_subtract_curr_t(&check_queue_t, &tm);
-}
-
-void Server::MainLoop()
-{
-	fd_set readfds, writefds;
-	sockaddr_in addr;
-	//struct timeval tm = {0, 0};
-	int res;
-
-	for(;;) {
-
-		PrepareSetsForSelect(&readfds, &writefds);
-		/*
-		res = timeval_subtract_curr_t(&check_queue_t, &tm);
-		printf("check queue, sec: %lu usec: %d\n", check_queue_t.tv_sec, check_queue_t.tv_usec);
-		printf("sec: %lu usec: %d\n", tm.tv_sec, tm.tv_usec);
-		if (res == 1) {
-			// call QueueManager
-			SetCheckTime();
-		}
-
-		res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, &tm);
-		*/
-		res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, NULL);
-		if (res == -1) {
-			perror("select");
-			printf("sec: %lu usec: %d\n", tm.tv_sec, tm.tv_usec);
-			return;
-		}
-
-		if (res == 0) {
-			// call QueueManager
-			SetCheckTime();
-		}
-
-		if (FD_ISSET(listening_sock, &readfds)) {
-			int fd = AcceptConnection(&addr);
-			TCPSession* s = AddSession(&addr, fd);
-			s->ServeAsSMTPServerSession(queue_manager);
-		}
-
-		for (int i = 0; i < MAX_SESSIONS; i++) {
-			if (sessions[i]) {
-				printf("process session with sock %d\n", sessions[i]->GetSocketDesc());
-				ProcessSession(sessions[i], readfds, writefds);
-			}
-		}
-	}
-}
-
-void Server::Run()
-{
-	try {
-		port = config.GetPort();
-		CreateListeningSocket();
-		fdsets.AddListeningSock(listening_sock);
-		queue_manager.CreateMailQueueDir();
-		MainLoop();
-
-	} catch(const char* s) {
-		printf("%s\n", s);
-	}
-	catch(FatalException e) {
-		printf("Fatal exception caught\n");
-	}
-	catch(ConfigError e) {
-		printf("ConfigError\n");
-	}
-	catch(...){
-		printf("Unknown error occured\n");
-	}
-}
-
-void Server::EmptyAllocatedMemory()
+Server::~Server()
 {
 	for (int i = 0; i < MAX_SESSIONS; i++)
 		delete sessions[i];
 	delete[] sessions;
-}
-
-Server::~Server()
-{
-	EmptyAllocatedMemory();
-	if (listening_sock != -1) {
-		shutdown(listening_sock, 2);
-		close(listening_sock);
-	}
 }
 
 
