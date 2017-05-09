@@ -18,7 +18,7 @@ struct Mailbox {
 };
 
 class MailboxManager {
-	friend class ServerConfiguration;
+	friend class Configuration;
 	Mailbox* mailboxes;
 protected:
 	void AddMailbox(char* name, char* opt_line, ParseBuffer& buf);
@@ -29,7 +29,7 @@ public:
 	~MailboxManager();
 };
 
-class ServerConfiguration {
+class Configuration {
 	char* config_path;
 	int fd;
 	int port;
@@ -44,14 +44,14 @@ class ServerConfiguration {
 	bool CloseConfig();
 public:
 	MailboxManager mailbox_manager;
-	ServerConfiguration(char* config_path_);
+	Configuration(char* config_path_);
 	void Configure();
 	int GetPort() const {return port;}
 	int GetTimeout() const {return timeout;}
 	char* GetServerName() const {return server;}
 	char* GetDomainName() const {return domain;}
 	char* GetQueuePath() const {return queue_path;}
-	~ServerConfiguration();
+	~Configuration();
 };
 
 #endif

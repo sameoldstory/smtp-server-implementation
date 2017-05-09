@@ -1,5 +1,6 @@
 #include "mainLoop.h"
 #include "commandLineArgs.h"
+#include "configuration.h"
 #include <stdio.h>
 
 int main(int argc, char** argv) {
@@ -8,7 +9,7 @@ int main(int argc, char** argv) {
 		puts("Specify parameters: -c configname");
 		return -1;
 	}
-	ServerConfiguration config(cl_args.GetConfigPath());
+	Configuration config(cl_args.GetConfigPath());
 	config.Configure();
 	MainLoop main_loop(config, config.GetQueuePath(), config.GetServerName());
 	main_loop.Prepare();

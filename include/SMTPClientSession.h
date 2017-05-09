@@ -8,8 +8,6 @@
 
 enum client_state {start, helo, mail, rcpt, data, data_message, quit, end};
 
-class ServerConfiguration;
-
 struct SessionArgs {
 	char* ehlo;
 	char* mail;

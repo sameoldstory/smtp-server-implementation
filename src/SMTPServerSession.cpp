@@ -1,5 +1,5 @@
 #include "SMTPServerSession.h"
-#include "serverConfiguration.h"
+#include "configuration.h"
 #include "queueManager.h"
 #include <ctype.h>
 #include <unistd.h>

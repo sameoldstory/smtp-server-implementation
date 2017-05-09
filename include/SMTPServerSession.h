@@ -5,7 +5,6 @@
 #include "sessionHierarchy.h"
 
 class MailboxManager;
-class ServerConfiguration;
 struct Mailbox;
 class QueueManager;
 

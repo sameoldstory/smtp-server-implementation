@@ -1,5 +1,4 @@
 #include "SMTPClientSession.h"
-#include "serverConfiguration.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -79,7 +78,6 @@ char* SMTPClientSession::GetMessage()
 		}
 		if (res != 0) {
 			next_msg[res] = '\0';
-			int len = strlen(next_msg);
 			need_to_write = true;
 		}
 		break;

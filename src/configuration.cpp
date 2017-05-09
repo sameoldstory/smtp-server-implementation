@@ -1,4 +1,4 @@
-#include "serverConfiguration.h"
+#include "configuration.h"
 #include "buffer.h"
 #include "exceptions.h"
 #include <stdio.h>
@@ -128,14 +128,14 @@ void MailboxManager::AddMailbox(char* name, char* opt_line, ParseBuffer& buf)
 	}
 }
 
-ServerConfiguration::ServerConfiguration(char* config_path_):
+Configuration::Configuration(char* config_path_):
 	fd(-1), port(-1), timeout(0), buf(CONFIG_BUF_SIZE), server(NULL), domain(NULL),
 	queue_path(NULL), mailbox_manager()
 {
 	config_path = strdup(config_path_);
 }
 
-ServerConfiguration::~ServerConfiguration()
+Configuration::~Configuration()
 {
 	free(config_path);
 	free(server);
@@ -143,7 +143,7 @@ ServerConfiguration::~ServerConfiguration()
 	free(queue_path);
 }
 
-int ServerConfiguration::ConvertStringToNumber(char* port_str) const
+int Configuration::ConvertStringToNumber(char* port_str) const
 {
 	int len = strlen(port_str);
 	if (len == 0)
@@ -159,7 +159,7 @@ int ServerConfiguration::ConvertStringToNumber(char* port_str) const
 	throw ConfigError("Numeric parameter was not specified");
 }
 
-bool ServerConfiguration::OpenConfig()
+bool Configuration::OpenConfig()
 {
 	fd = open(config_path, O_RDONLY);
 	if (fd == -1) {
@@ -169,7 +169,7 @@ bool ServerConfiguration::OpenConfig()
 	return true;
 }
 
-bool ServerConfiguration::CloseConfig()
+bool Configuration::CloseConfig()
 {
 	if (fd == -1)
 		return false;
@@ -179,9 +179,9 @@ bool ServerConfiguration::CloseConfig()
 		return true;
 }
 
-// TODO: ServerConfiguration::ExtractInfoFromConfig is horrible. needs to be refactored
+// TODO: Configuration::ExtractInfoFromConfig is horrible. needs to be refactored
 
-void ServerConfiguration::ExtractInfoFromConfig()
+void Configuration::ExtractInfoFromConfig()
 {
 	bool mailboxes = false;
 	char tmp_buf[CONFIG_BUF_SIZE];
@@ -233,7 +233,7 @@ void ServerConfiguration::ExtractInfoFromConfig()
 	}
 }
 
-void ServerConfiguration::Configure()
+void Configuration::Configure()
 {
 	if (!config_path) {
 		throw ConfigError("Server can't be launched: specify path for configuration file with -c key\n");

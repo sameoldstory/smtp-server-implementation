@@ -1,12 +1,11 @@
 #include "mainLoop.h"
 #include "TCPSession.h"
 #include "exceptions.h"
+#include "configuration.h"
 #include <sys/select.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-
-#define DEFAULT_BACKLOG 5
 
 void MainLoop::SetCheckTime()
 {
@@ -17,10 +16,9 @@ void MainLoop::SetCheckTime()
 	*/
 }
 
-MainLoop::MainLoop(ServerConfiguration& _config, char* path, char* server_name):
-	listening_sock(-1), port(-1), smtp_server(_config), queue_manager(path, server_name, _config.mailbox_manager)
+MainLoop::MainLoop(Configuration& _config, char* path, char* server_name):
+	config(_config), smtp_server(_config.GetPort()), queue_manager(path, server_name, _config.mailbox_manager)
 {
-	port = _config.GetPort();
 	SetCheckTime();
 }
 
@@ -30,35 +28,11 @@ void MainLoop::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 	memcpy(write, &(smtp_server.fdsets.writefds), sizeof(fd_set));
 }
 
-void MainLoop::CreateListeningSocket()
-{
-	address.sin_family = AF_INET;
-	address.sin_port = htons(port);
-	address.sin_addr.s_addr = INADDR_ANY;
-
-	listening_sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (listening_sock == -1) {
-		perror("socket");
-		throw FatalException();
-	}
-	int opt = 1;
-	setsockopt(listening_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	if (bind(listening_sock, (sockaddr*) &address, sizeof(address))) {
-		perror("bind");
-		throw FatalException();
-	}
-	if (listen(listening_sock, DEFAULT_BACKLOG) == -1) {
-		perror("listen");
-		throw FatalException();
-	}
-}
-
 void MainLoop::Prepare()
 {
 	try {
-
-		CreateListeningSocket();
-		smtp_server.fdsets.AddListeningSock(listening_sock);
+		int sock = smtp_server.CreateListeningSocket();
+		smtp_server.fdsets.AddListeningSock(sock);
 		queue_manager.CreateMailQueueDir();
 
 	} catch(const char* s) {
@@ -110,8 +84,8 @@ void MainLoop::Run()
 			SetCheckTime();
 		}
 
-		if (FD_ISSET(listening_sock, &readfds)) {
-			int fd = smtp_server.AcceptConnection(&addr, listening_sock);
+		if (smtp_server.HasIncomingConnection(&readfds)) {
+			int fd = smtp_server.AcceptConnection(&addr);
 			TCPSession* s = smtp_server.AddSession(&addr, fd);
 			s->ServeAsSMTPServerSession(queue_manager);
 		}
@@ -122,8 +96,5 @@ void MainLoop::Run()
 
 MainLoop::~MainLoop()
 {
-	if (listening_sock != -1) {
-		shutdown(listening_sock, 2);
-		close(listening_sock);
-	}
+
 }

@@ -1,7 +1,6 @@
 #ifndef SERVER_SERVER_H
 #define SERVER_SERVER_H
 
-#include "serverConfiguration.h"
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include "queueManager.h"
@@ -21,15 +20,19 @@ struct ReadyIndicators {
 };
 
 class Server {
+	int listening_sock;
+	int port;
+	sockaddr_in address;
 	TCPSession** sessions;
-	ServerConfiguration& config;
 	int ConnectToHost(sockaddr_in* cl_addr, char* host);
 	void DeleteSession(TCPSession**);
 	void ProcessSession(TCPSession*& s_ptr, fd_set& readfds, fd_set& writefds);
 public:
 	ReadyIndicators fdsets;
-	Server(ServerConfiguration& _config);
-	int AcceptConnection(sockaddr_in* cl_addr, int sock);
+	int CreateListeningSocket();
+	Server(int _port);
+	int AcceptConnection(sockaddr_in* cl_addr);
+	bool HasIncomingConnection(fd_set* readfds);
 	TCPSession* AddSession(sockaddr_in* addr, int fd);
 	void IterateThroughSessions(fd_set& readfds, fd_set& writefds);
 	~Server();

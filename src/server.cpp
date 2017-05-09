@@ -17,6 +17,7 @@
 class SMTPServerSession;
 
 #define MAX_SESSIONS 16
+#define DEFAULT_BACKLOG 5
 
 ReadyIndicators::ReadyIndicators()
 {
@@ -56,12 +57,17 @@ void ReadyIndicators::SetWritefds(int sock)
 }
 
 
-Server::Server(ServerConfiguration& _config):
-	sessions(NULL), config(_config), fdsets()
+Server::Server(int _port):
+	listening_sock(-1), port(_port), sessions(NULL), fdsets()
 {
 	sessions = new TCPSession*[MAX_SESSIONS];
 	for (int i = 0; i < MAX_SESSIONS; i++)
 		sessions[i] = NULL;
+}
+
+bool Server::HasIncomingConnection(fd_set* readfds)
+{
+	return FD_ISSET(listening_sock, readfds);
 }
 
 void Server::IterateThroughSessions(fd_set& readfds, fd_set& writefds)
@@ -75,10 +81,35 @@ void Server::IterateThroughSessions(fd_set& readfds, fd_set& writefds)
 
 }
 
-int Server::AcceptConnection(sockaddr_in* addr, int sock)
+int Server::CreateListeningSocket()
+{
+	address.sin_family = AF_INET;
+	address.sin_port = htons(port);
+	address.sin_addr.s_addr = INADDR_ANY;
+
+	listening_sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (listening_sock == -1) {
+		perror("socket");
+		throw FatalException();
+	}
+	int opt = 1;
+	setsockopt(listening_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	if (bind(listening_sock, (sockaddr*) &address, sizeof(address))) {
+		perror("bind");
+		throw FatalException();
+	}
+	if (listen(listening_sock, DEFAULT_BACKLOG) == -1) {
+		perror("listen");
+		throw FatalException();
+	}
+	return listening_sock;
+}
+
+
+int Server::AcceptConnection(sockaddr_in* addr)
 {
 	socklen_t size = INET_ADDRSTRLEN;
-	int fd = accept(sock, (sockaddr*) addr, &size);
+	int fd = accept(listening_sock, (sockaddr*) addr, &size);
 	if (fd == -1)
 		throw "Accept Failed";
 	return fd;
@@ -206,6 +237,10 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 
 Server::~Server()
 {
+	if (listening_sock != -1) {
+		shutdown(listening_sock, 2);
+		close(listening_sock);
+	}
 	for (int i = 0; i < MAX_SESSIONS; i++)
 		delete sessions[i];
 	delete[] sessions;
