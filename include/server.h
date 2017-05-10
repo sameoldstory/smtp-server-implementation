@@ -24,17 +24,16 @@ class Server {
 	int port;
 	sockaddr_in address;
 	TCPSession** sessions;
-	int ConnectToHost(sockaddr_in* cl_addr, char* host);
+	TCPSession* AddSession(sockaddr_in* addr, int fd);
 	void DeleteSession(TCPSession**);
-	void ProcessSession(TCPSession*& s_ptr, fd_set& readfds, fd_set& writefds);
+	void ProcessSession(TCPSession*& s_ptr, fd_set* readfds, fd_set* writefds);
+	int AcceptConnection(sockaddr_in* cl_addr);
 public:
 	ReadyIndicators fdsets;
 	int CreateListeningSocket();
+	void IterateThroughActiveSessions(fd_set* readfds, fd_set* writefds);
+	TCPSession* NewIncomingConnection(fd_set* readfds);
 	Server(int _port);
-	int AcceptConnection(sockaddr_in* cl_addr);
-	bool HasIncomingConnection(fd_set* readfds);
-	TCPSession* AddSession(sockaddr_in* addr, int fd);
-	void IterateThroughSessions(fd_set& readfds, fd_set& writefds);
 	~Server();
 };
 

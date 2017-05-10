@@ -65,12 +65,19 @@ Server::Server(int _port):
 		sessions[i] = NULL;
 }
 
-bool Server::HasIncomingConnection(fd_set* readfds)
+TCPSession* Server::NewIncomingConnection(fd_set* readfds)
 {
-	return FD_ISSET(listening_sock, readfds);
+	sockaddr_in addr;
+
+	if (FD_ISSET(listening_sock, readfds)) {
+		int fd = AcceptConnection(&addr);
+		TCPSession* s = AddSession(&addr, fd);
+		return s;
+	}
+	return NULL;
 }
 
-void Server::IterateThroughSessions(fd_set& readfds, fd_set& writefds)
+void Server::IterateThroughActiveSessions(fd_set* readfds, fd_set* writefds)
 {
 	for (int i = 0; i < MAX_SESSIONS; i++) {
 		if (sessions[i]) {
@@ -78,7 +85,6 @@ void Server::IterateThroughSessions(fd_set& readfds, fd_set& writefds)
 			ProcessSession(sessions[i], readfds, writefds);
 		}
 	}
-
 }
 
 int Server::CreateListeningSocket()
@@ -115,19 +121,6 @@ int Server::AcceptConnection(sockaddr_in* addr)
 	return fd;
 }
 
-int Server::ConnectToHost(sockaddr_in* cl_addr, char* host)
-{
-	/*
-	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	struct sockaddr_in addr;
-	struct hostent* host_ptr = gethostbyname(host);
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = * (int32_t*) host_ptr->h_addr_list[0];
-	return connect(sock, (struct sockaddr*)&addr, sizeof(addr));
-	*/
-}
-
 TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
 {
 	int i;
@@ -153,11 +146,11 @@ void Server::DeleteSession(TCPSession** ptr)
 	fdsets.DeleteSessionSock(fd);
 }
 
-void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writefds)
+void Server::ProcessSession(TCPSession* & s_ptr, fd_set*readfds, fd_set* writefds)
 {
 	int fd = s_ptr->GetSocketDesc();
 
-	if (s_ptr->NeedsToWrite() && FD_ISSET(fd, &writefds)) {
+	if (s_ptr->NeedsToWrite() && FD_ISSET(fd, writefds)) {
 		printf("Process Write %d\n", s_ptr->GetSocketDesc());
 		s_ptr->ProcessWriteOperation();
 		if (!s_ptr->NeedsToWrite()) {
@@ -219,7 +212,7 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set& readfds, fd_set& writef
 		}
 	}
 
-	if (s_ptr && FD_ISSET(fd, &readfds)) {
+	if (s_ptr && FD_ISSET(fd, readfds)) {
 		printf("Process Read %d\n", s_ptr->GetSocketDesc());
 		int res = s_ptr->ProcessReadOperation();
 		if (s_ptr->NeedsToWrite()) {

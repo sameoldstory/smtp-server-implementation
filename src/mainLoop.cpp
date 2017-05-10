@@ -52,7 +52,6 @@ void MainLoop::Prepare()
 void MainLoop::Run()
 {
 	fd_set readfds, writefds;
-	sockaddr_in addr;
 	//struct timeval tm = {0, 0};
 	int res;
 
@@ -84,13 +83,11 @@ void MainLoop::Run()
 			SetCheckTime();
 		}
 
-		if (smtp_server.HasIncomingConnection(&readfds)) {
-			int fd = smtp_server.AcceptConnection(&addr);
-			TCPSession* s = smtp_server.AddSession(&addr, fd);
-			s->ServeAsSMTPServerSession(queue_manager);
+		TCPSession* tcp_ptr = smtp_server.NewIncomingConnection(&readfds);
+		if (tcp_ptr) {
+			tcp_ptr->ServeAsSMTPServerSession(queue_manager);
 		}
-
-		smtp_server.IterateThroughSessions(readfds, writefds);
+		smtp_server.IterateThroughActiveSessions(&readfds, &writefds);
 	}
 }
 
