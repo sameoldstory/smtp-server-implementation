@@ -1,6 +1,7 @@
 #include "mainLoop.h"
 #include "commandLineArgs.h"
 #include "configuration.h"
+#include "SMTPServer.h"
 #include <stdio.h>
 
 int main(int argc, char** argv) {
@@ -11,8 +12,9 @@ int main(int argc, char** argv) {
 	}
 	Configuration config(cl_args.GetConfigPath());
 	config.Configure();
-	MainLoop main_loop(config, config.GetQueuePath(), config.GetServerName());
-	main_loop.Prepare();
+	SMTPServer smtp(config);
+	MainLoop main_loop(smtp);
+	main_loop.Init();
 	main_loop.Run();
 	return 0;
 }

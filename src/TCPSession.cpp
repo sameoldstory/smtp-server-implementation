@@ -15,6 +15,8 @@ TCPSession::TCPSession(int fd_, sockaddr_in addr_):
 TCPSession::~TCPSession()
 {
 	delete session_driver;
+	shutdown(fd, SHUT_RDWR);
+    close(fd);
 }
 
 char* TCPSession::GetIpString() const

@@ -2,6 +2,7 @@
 #include "TCPSession.h"
 #include "exceptions.h"
 #include "configuration.h"
+#include "SMTPServer.h"
 #include <sys/select.h>
 #include <string.h>
 #include <stdio.h>
@@ -16,8 +17,8 @@ void MainLoop::SetCheckTime()
 	*/
 }
 
-MainLoop::MainLoop(Configuration& _config, char* path, char* server_name):
-	config(_config), smtp_server(_config.GetPort()), queue_manager(path, server_name, _config.mailbox_manager)
+MainLoop::MainLoop(SMTPServer& _server):
+	smtp_server(_server)
 {
 	SetCheckTime();
 }
@@ -28,13 +29,10 @@ void MainLoop::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 	memcpy(write, &(smtp_server.fdsets.writefds), sizeof(fd_set));
 }
 
-void MainLoop::Prepare()
+void MainLoop::Init()
 {
 	try {
-		int sock = smtp_server.CreateListeningSocket();
-		smtp_server.fdsets.AddListeningSock(sock);
-		queue_manager.CreateMailQueueDir();
-
+		smtp_server.Init();
 	} catch(const char* s) {
 		printf("%s\n", s);
 	}
@@ -83,11 +81,12 @@ void MainLoop::Run()
 			SetCheckTime();
 		}
 
-		TCPSession* tcp_ptr = smtp_server.NewIncomingConnection(&readfds);
+		/*
 		if (tcp_ptr) {
 			tcp_ptr->ServeAsSMTPServerSession(queue_manager);
 		}
-		smtp_server.IterateThroughActiveSessions(&readfds, &writefds);
+		*/
+		smtp_server.Run(&readfds, &writefds);
 	}
 }
 
