@@ -14,6 +14,7 @@ private:
 public:
 	QueueManager(char* _queue_path, char* _server_name, MailboxManager& _manager);
 	~QueueManager();
+
 	void CreateMailQueueDir();
 	void ProcessMessage(char* id);
 	void GoThroughQueue();

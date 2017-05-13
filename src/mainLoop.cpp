@@ -3,36 +3,36 @@
 #include "exceptions.h"
 #include "configuration.h"
 #include "TCPServer.h"
+#include "eventHandler.h"
+#include "timeval.h"
 #include <sys/select.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 
-void MainLoop::SetCheckTime()
+void MainLoop::SetTimer()
 {
-	/*
-	gettimeofday(&check_queue_t, NULL);
-	check_queue_t.tv_sec += config.GetTimeout();
-	timeval_subtract_curr_t(&check_queue_t, &tm);
-	*/
+	gettimeofday(&scheduled, NULL);
+	scheduled.tv_sec += handler->GetTimeout();
+	timeval_subtract_curr_t(&timeout, &scheduled);
 }
 
-MainLoop::MainLoop(TCPServer& _server):
-	server(_server)
+MainLoop::MainLoop(TCPServer* _server, EventHandler* _handler):
+	server(_server), handler(_handler)
 {
-	SetCheckTime();
+	SetTimer();
 }
 
 void MainLoop::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 {
-	memcpy(read, &(server.fdsets.readfds), sizeof(fd_set));
-	memcpy(write, &(server.fdsets.writefds), sizeof(fd_set));
+	memcpy(read, &(server->fdsets.readfds), sizeof(fd_set));
+	memcpy(write, &(server->fdsets.writefds), sizeof(fd_set));
 }
 
 void MainLoop::Init()
 {
 	try {
-		server.Init();
+		server->Init();
 	} catch(const char* s) {
 		printf("%s\n", s);
 	}
@@ -50,43 +50,30 @@ void MainLoop::Init()
 void MainLoop::Run()
 {
 	fd_set readfds, writefds;
-	//struct timeval tm = {0, 0};
+	struct timeval timeout = {handler->GetTimeout(), 0};
 	int res;
 
 	for(;;) {
 
 		PrepareSetsForSelect(&readfds, &writefds);
 
-		/*
-		res = timeval_subtract_curr_t(&check_queue_t, &tm);
-		printf("check queue, sec: %lu usec: %d\n", check_queue_t.tv_sec, check_queue_t.tv_usec);
-		printf("sec: %lu usec: %d\n", tm.tv_sec, tm.tv_usec);
-		if (res == 1) {
-			// call QueueManager
-			SetCheckTime();
+		if (1 == timeval_subtract_curr_t(&timeout, &scheduled)) {
+			handler->Run();
+			SetTimer();
 		}
 
-		res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, &tm);
-		*/
-
-		res = select(server.fdsets.max_fd + 1, &readfds, &writefds, NULL, NULL);
+		res = select(server->fdsets.max_fd + 1, &readfds, &writefds, NULL, &timeout);
 		if (res == -1) {
 			perror("select");
-			printf("sec: %lu usec: %d\n", tm.tv_sec, tm.tv_usec);
 			return;
 		}
 
 		if (res == 0) {
-			// call QueueManager
-			SetCheckTime();
+			handler->Run();
+			SetTimer();
 		}
 
-		/*
-		if (tcp_ptr) {
-			tcp_ptr->ServeAsSMTPServerSession(queue_manager);
-		}
-		*/
-		server.Run(&readfds, &writefds);
+		server->Run(&readfds, &writefds);
 	}
 }
 

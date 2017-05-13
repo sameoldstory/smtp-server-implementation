@@ -4,6 +4,6 @@
 int timeval_subtract(struct timeval *result,
 	struct timeval *x, struct timeval *y);
 
-int timeval_subtract_curr_t(struct timeval* x, struct timeval *result);
+int timeval_subtract_curr_t(struct timeval *result, struct timeval* x);
 
 #endif

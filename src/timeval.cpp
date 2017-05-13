@@ -35,7 +35,9 @@ timeval_subtract(struct timeval *result,
   return x->tv_sec < y->tv_sec;
 }
 
-int timeval_subtract_curr_t(struct timeval* x, struct timeval *result)
+// below is my shortcut for timeval_subtract
+
+int timeval_subtract_curr_t(struct timeval *result, struct timeval* x)
 {
     struct timeval y;
     gettimeofday(&y, NULL);
