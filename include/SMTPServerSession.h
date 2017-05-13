@@ -25,7 +25,7 @@ struct SenderInfo {
 };
 
 class MessageSaver {
-	QueueManager& queue_manager;
+	QueueManager* queue_manager;
 	SenderInfo sender_info;
 	SMTPSessionInfo* session_info;
 	int msg_d;
@@ -42,7 +42,7 @@ class MessageSaver {
 	void AddForLineToReceive(char*&) const;
 	void AddDateLineToReceive(char*&, int) const;
 public:
-	MessageSaver(QueueManager& _queue_manager, SMTPSessionInfo*, char*, char*);
+	MessageSaver(QueueManager* _queue_manager, SMTPSessionInfo*, char*, char*);
 	void PrepareForMsgSaving();
 	void WriteLineToFile(const char*);
 	Mailbox* GetMailbox(char* name);
@@ -70,7 +70,7 @@ class SMTPServerSession: public SMTPSession {
 		start, helo, mail, rcpt, datastart, datafinish, quit
 	} state;
 public:
-	SMTPServerSession(QueueManager& _queue_manager, int, char*, char*);
+	SMTPServerSession(QueueManager* _queue_manager, int, char*, char*);
 	char* GetMessage();
 	char* GetFilename() const {return msg_saver.GetFilename();}
 	bool SessionFinished() const {if (state == quit) return true; else return false;}

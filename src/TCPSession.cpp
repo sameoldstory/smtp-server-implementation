@@ -68,19 +68,10 @@ short int TCPSession::ProcessWriteOperation()
 	return write(fd, message, strlen(message));
 }
 
-void TCPSession::ServeAsSMTPServerSession(QueueManager& _queue_manager)
+void TCPSession::Serve(TCPSessionDriver* driver)
 {
  	if (session_driver)
  		throw "TCPSession already provides some service";
- 	session_driver = new
- 		SMTPServerSession(_queue_manager, sizeof(buf), GetHostname(), GetIpString());
+ 	session_driver = driver;
 }
 
-void TCPSession::ServeAsSMTPClientSession(char* ehlo, char* sender, char* rcpt,
-	int _fd)
-{
-	if (session_driver)
- 		throw "TCPSession already provides some service";
- 	session_driver = new
- 		SMTPClientSession(sizeof(buf), ehlo, sender, rcpt, _fd);
-}

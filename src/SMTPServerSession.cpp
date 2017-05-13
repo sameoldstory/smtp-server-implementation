@@ -53,28 +53,28 @@ void SMTPSessionInfo::AddRecipient(Mailbox* box)
 	recipients = new_box;
 }
 
-MessageSaver::MessageSaver(QueueManager& _queue_manager, SMTPSessionInfo* _info, char* host, char* ip):
+MessageSaver::MessageSaver(QueueManager* _queue_manager, SMTPSessionInfo* _info, char* host, char* ip):
 	queue_manager(_queue_manager), sender_info(host, ip), session_info(_info), msg_d(-1), filename(0)
 {
-	queue_manager.counter++;
+	queue_manager->counter++;
 }
 
 MessageSaver::~MessageSaver()
 {
 	free(filename);
-	free(queue_manager.path);
+	free(queue_manager->path);
 	close(msg_d);
 }
 
 Mailbox* MessageSaver::GetMailbox(char* name)
 {
-	return queue_manager.mailboxes.GetMailbox(name);
+	return queue_manager->mailboxes.GetMailbox(name);
 }
 
 void MessageSaver::GenerateFileName()
 {
 	char buf[TEMP_BUF_SIZE];
-	sprintf(buf, "%lu_%d", time(NULL), queue_manager.counter);
+	sprintf(buf, "%lu_%d", time(NULL), queue_manager->counter);
 	int len = strlen(buf)+1;
 	free(filename);
 	filename = (char*)malloc(len);
@@ -84,7 +84,7 @@ void MessageSaver::GenerateFileName()
 int MessageSaver::OpenFile(const char* extension) const
 {
 	char buf[TEMP_BUF_SIZE];
-	sprintf(buf, "%s%s.%s", queue_manager.path, filename, extension);
+	sprintf(buf, "%s%s.%s", queue_manager->path, filename, extension);
 	int fd = open(buf, O_CREAT|O_WRONLY);
 	if (fd == -1)
 		throw "MessageSaver::OpenFile: could not open file";
@@ -143,7 +143,7 @@ void MessageSaver::AddFromLineToReceive(char* & buf) const
 void MessageSaver::AddByLineToReceive(char* & buf) const
 {
 	sprintf(buf, "\tby %s (Ceres) with ESMTP id %d",
-		queue_manager.server_name, queue_manager.counter);
+		queue_manager->server_name, queue_manager->counter);
 	buf += strlen(buf);
 }
 
@@ -193,14 +193,14 @@ void MessageSaver::WriteLineToFile(const char* str)
 void MessageSaver::FinishSaving()
 {
 	try {
-		queue_manager.ProcessMessage(filename);
+		queue_manager->ProcessMessage(filename);
 	}
 	catch(char* err) {
 		printf("Exception: %s\n", err);
 	}
 }
 
-SMTPServerSession::SMTPServerSession(QueueManager& _queue_manager, int buf_size,
+SMTPServerSession::SMTPServerSession(QueueManager* _queue_manager, int buf_size,
 	char* host, char* ip): SMTPSession(true), in_buf(buf_size),
 	session_info(),
 	msg_saver(_queue_manager, &session_info, host, ip)

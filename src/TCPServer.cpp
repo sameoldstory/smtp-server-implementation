@@ -6,12 +6,12 @@
 #include <string.h>
 #include <unistd.h>
 #include "exceptions.h"
-#include "server.h"
+#include "TCPServer.h"
 #include "TCPSession.h"
 #include <netdb.h>
 #include <fcntl.h>
 #include "timeval.h"
-// TODO: get rid of this include later, when queueManager class is ready
+// TODO: get rid of this include later
 #include "SMTPServerSession.h"
 
 class SMTPServerSession;
@@ -57,7 +57,7 @@ void ReadWriteDescriptors::SetWritefds(int sock)
 }
 
 
-Server::Server(int _port):
+TCPServer::TCPServer(int _port):
     listening_sock(-1), port(_port), sessions(NULL), fdsets()
 {
     sessions = new TCPSession*[MAX_SESSIONS];
@@ -65,7 +65,7 @@ Server::Server(int _port):
         sessions[i] = NULL;
 }
 
-TCPSession* Server::NewConnection()
+TCPSession* TCPServer::NewConnection()
 {
     sockaddr_in addr;
     int fd = AcceptConnection(&addr);
@@ -73,7 +73,7 @@ TCPSession* Server::NewConnection()
     return s;
 }
 
-void Server::Run(fd_set* readfds, fd_set* writefds)
+void TCPServer::Run(fd_set* readfds, fd_set* writefds)
 {
     if (FD_ISSET(listening_sock, readfds)) {
         NewConnection();
@@ -87,7 +87,7 @@ void Server::Run(fd_set* readfds, fd_set* writefds)
     }
 }
 
-void Server::Init()
+void TCPServer::Init()
 {
     sockaddr_in address;
 
@@ -115,7 +115,7 @@ void Server::Init()
 }
 
 
-int Server::AcceptConnection(sockaddr_in* addr)
+int TCPServer::AcceptConnection(sockaddr_in* addr)
 {
     socklen_t size = INET_ADDRSTRLEN;
     int fd = accept(listening_sock, (sockaddr*) addr, &size);
@@ -124,7 +124,7 @@ int Server::AcceptConnection(sockaddr_in* addr)
     return fd;
 }
 
-TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
+TCPSession* TCPServer::AddSession(sockaddr_in* addr, int fd)
 {
     int i;
     for (i = 0; sessions[i]; i++) {
@@ -139,7 +139,7 @@ TCPSession* Server::AddSession(sockaddr_in* addr, int fd)
     return sessions[i];
 }
 
-void Server::DeleteSession(TCPSession** ptr)
+void TCPServer::DeleteSession(TCPSession** ptr)
 {
     int fd = (*ptr)->GetSocketDesc();
     delete *ptr;
@@ -147,7 +147,7 @@ void Server::DeleteSession(TCPSession** ptr)
     fdsets.DeleteSessionSock(fd);
 }
 
-void Server::ProcessSession(TCPSession* & s_ptr, fd_set*readfds, fd_set* writefds)
+void TCPServer::ProcessSession(TCPSession* & s_ptr, fd_set*readfds, fd_set* writefds)
 {
     int fd = s_ptr->GetSocketDesc();
 
@@ -229,7 +229,7 @@ void Server::ProcessSession(TCPSession* & s_ptr, fd_set*readfds, fd_set* writefd
 
 }
 
-Server::~Server()
+TCPServer::~TCPServer()
 {
     if (listening_sock != -1) {
         shutdown(listening_sock, 2);

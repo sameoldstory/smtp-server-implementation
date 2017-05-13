@@ -18,21 +18,22 @@ class TCPSession {
 	TCPSessionDriver* session_driver;
 public:
 	TCPSession(int fd_, sockaddr_in cl_addr_);
+	~TCPSession();
+
 	short int ProcessReadOperation();
 	short int ProcessWriteOperation();
 	bool NeedsToWrite() const;
+	bool NeedsToBeClosed() const;
+	void Serve(TCPSessionDriver* driver);
+
 	int GetSocketDesc() const {return fd;}
 	char* GetIpString() const;
 	char* GetHostname() const;
-	bool NeedsToBeClosed() const;
-	void ServeAsSMTPServerSession(QueueManager& _queue_manager);
-	void ServeAsSMTPClientSession(char* ehlo, char* sender,
-		char* rcpt, int _fd);
+
 	// this is temporary method
 	TCPSessionDriver* GetSessionDriverPtr() {
 		return session_driver;
 	}
-	~TCPSession();
 };
 
 #endif

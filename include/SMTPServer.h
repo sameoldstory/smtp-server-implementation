@@ -1,19 +1,19 @@
 #ifndef SERVER_SMTP_SERVER_H
 #define SERVER_SMTP_SERVER_H
 
-#include "server.h"
+#include "TCPServer.h"
 #include "queueManager.h"
 
 class Configuration;
 
-class SMTPServer: public Server
+class SMTPServer: public TCPServer
 {
-	Configuration& config;
+	Configuration* config;
 	QueueManager queue_manager;
 protected:
 	virtual TCPSession* NewConnection();
 public:
-	SMTPServer(Configuration& _config);
+	SMTPServer(Configuration* _config);
 	virtual void Init();
 	virtual ~SMTPServer();
 };

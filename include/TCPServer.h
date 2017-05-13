@@ -19,22 +19,22 @@ struct ReadWriteDescriptors {
     void SetWritefds(int sock);
 };
 
-class Server {
+class TCPServer {
     int listening_sock;
     int port;
     TCPSession** sessions;
-protected:
     TCPSession* AddSession(sockaddr_in* addr, int fd);
     void DeleteSession(TCPSession**);
     void ProcessSession(TCPSession*& s_ptr, fd_set* readfds, fd_set* writefds);
     int AcceptConnection(sockaddr_in* cl_addr);
+protected:
     virtual TCPSession* NewConnection();
 public:
     ReadWriteDescriptors fdsets;
     virtual void Init();
     void Run(fd_set* readfds, fd_set* writefds);
-    Server(int _port);
-    virtual ~Server();
+    TCPServer(int _port);
+    virtual ~TCPServer();
 };
 
 #endif

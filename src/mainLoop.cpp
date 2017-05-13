@@ -2,7 +2,7 @@
 #include "TCPSession.h"
 #include "exceptions.h"
 #include "configuration.h"
-#include "SMTPServer.h"
+#include "TCPServer.h"
 #include <sys/select.h>
 #include <string.h>
 #include <stdio.h>
@@ -17,22 +17,22 @@ void MainLoop::SetCheckTime()
 	*/
 }
 
-MainLoop::MainLoop(SMTPServer& _server):
-	smtp_server(_server)
+MainLoop::MainLoop(TCPServer& _server):
+	server(_server)
 {
 	SetCheckTime();
 }
 
 void MainLoop::PrepareSetsForSelect(fd_set* read, fd_set* write) const
 {
-	memcpy(read, &(smtp_server.fdsets.readfds), sizeof(fd_set));
-	memcpy(write, &(smtp_server.fdsets.writefds), sizeof(fd_set));
+	memcpy(read, &(server.fdsets.readfds), sizeof(fd_set));
+	memcpy(write, &(server.fdsets.writefds), sizeof(fd_set));
 }
 
 void MainLoop::Init()
 {
 	try {
-		smtp_server.Init();
+		server.Init();
 	} catch(const char* s) {
 		printf("%s\n", s);
 	}
@@ -69,7 +69,7 @@ void MainLoop::Run()
 		res = select(fdsets.max_fd + 1, &readfds, &writefds, NULL, &tm);
 		*/
 
-		res = select(smtp_server.fdsets.max_fd + 1, &readfds, &writefds, NULL, NULL);
+		res = select(server.fdsets.max_fd + 1, &readfds, &writefds, NULL, NULL);
 		if (res == -1) {
 			perror("select");
 			printf("sec: %lu usec: %d\n", tm.tv_sec, tm.tv_usec);
@@ -86,7 +86,7 @@ void MainLoop::Run()
 			tcp_ptr->ServeAsSMTPServerSession(queue_manager);
 		}
 		*/
-		smtp_server.Run(&readfds, &writefds);
+		server.Run(&readfds, &writefds);
 	}
 }
 

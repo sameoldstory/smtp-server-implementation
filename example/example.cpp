@@ -4,7 +4,8 @@
 #include "SMTPServer.h"
 #include <stdio.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
 	CommandLineArgs cl_args(argc, argv);
 	if (cl_args.ProcessArgs() == -1) {
 		puts("Specify parameters: -c configname");
