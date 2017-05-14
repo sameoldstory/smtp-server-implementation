@@ -73,6 +73,26 @@ TCPSession* TCPServer::NewConnection()
     return s;
 }
 
+TCPSession* TCPServer::ConnectToRemoteHost(char* host)
+{
+    struct hostent* host_ptr = gethostbyname(host);
+
+    if (NULL == host_ptr)
+        return NULL;
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = * (int32_t*) host_ptr->h_addr_list[0];
+
+    int err = connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    if (err != 0)
+        return NULL;
+
+    TCPSession* s = AddSession(&addr, sock);
+}
+
 void TCPServer::Run(fd_set* readfds, fd_set* writefds)
 {
     if (FD_ISSET(listening_sock, readfds)) {
@@ -194,18 +214,7 @@ void TCPServer::ProcessSession(TCPSession* & s_ptr, fd_set*readfds, fd_set* writ
 
                 // ConnectToHost
 
-                int sock = socket(AF_INET, SOCK_STREAM, 0);
-                struct sockaddr_in addr;
-                struct hostent* host_ptr = gethostbyname(host);
-                addr.sin_family = AF_INET;
-                addr.sin_port = htons(port);
-                addr.sin_addr.s_addr = * (int32_t*) host_ptr->h_addr_list[0];
-                connect(sock, (struct sockaddr*)&addr, sizeof(addr));
-
-                TCPSession* s = AddSession(&addr, sock);
-                char ehlo[] = "ceres.intelib.org";
-                s->ServeAsSMTPClientSession(ehlo, sender, rcpt, msg);
-                fdsets.ClearWritefds(sock);
+                ConnectToRemoteHost(host);
             #endif
 
             }

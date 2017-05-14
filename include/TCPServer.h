@@ -29,12 +29,15 @@ class TCPServer {
     int AcceptConnection(sockaddr_in* cl_addr);
 protected:
     virtual TCPSession* NewConnection();
+    TCPSession* ConnectToRemoteHost(char* host);
 public:
     ReadWriteDescriptors fdsets;
-    virtual void Init();
-    void Run(fd_set* readfds, fd_set* writefds);
+
     TCPServer(int _port);
     virtual ~TCPServer();
+
+    virtual void Init();
+    void Run(fd_set* readfds, fd_set* writefds);
 };
 
 #endif

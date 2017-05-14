@@ -14,8 +14,9 @@ int main(int argc, char** argv)
 	}
 	Configuration config(cl_args.GetConfigPath());
 	config.Configure();
-	SMTPServer smtp(&config);
-	QueueProcessor queue_processor(config.GetTimeout());
+	QueueProcessor queue_processor(config.GetTimeout(), config.GetQueuePath(),
+			config.GetServerName(), config.mailbox_manager);
+	SMTPServer smtp(&config, &queue_processor);
 	MainLoop main_loop(&smtp, &queue_processor);
 	main_loop.Init();
 	main_loop.Run();
