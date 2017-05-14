@@ -3,7 +3,6 @@
 
 #include <arpa/inet.h>
 #include <sys/time.h>
-#include "queueManager.h"
 
 class TCPSession;
 
@@ -38,6 +37,7 @@ public:
 
     virtual void Init();
     void Run(fd_set* readfds, fd_set* writefds);
+    virtual void HandleEvent() {};
 };
 
 #endif

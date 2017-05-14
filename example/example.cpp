@@ -2,7 +2,7 @@
 #include "commandLineArgs.h"
 #include "configuration.h"
 #include "SMTPServer.h"
-#include "queueProcessor.h"
+#include "queueManager.h"
 #include <stdio.h>
 
 int main(int argc, char** argv)
@@ -14,10 +14,11 @@ int main(int argc, char** argv)
 	}
 	Configuration config(cl_args.GetConfigPath());
 	config.Configure();
-	QueueProcessor queue_processor(config.GetTimeout(), config.GetQueuePath(),
+	QueueManager queue_manager(config.GetQueuePath(),
 			config.GetServerName(), config.mailbox_manager);
-	SMTPServer smtp(&config, &queue_processor);
-	MainLoop main_loop(&smtp, &queue_processor);
+	SMTPServer smtp(&config, &queue_manager);
+	queue_manager.BindWithServer(&smtp);
+	MainLoop main_loop(&smtp, config.GetTimeout());
 	main_loop.Init();
 	main_loop.Run();
 	return 0;

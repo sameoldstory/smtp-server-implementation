@@ -8,13 +8,13 @@ class EventHandler;
 
 class MainLoop {
 	TCPServer* server;
-	EventHandler* handler;
+	int seconds;
 	struct timeval scheduled;
 	struct timeval timeout;
 	void SetTimer();
 	void PrepareSetsForSelect(fd_set* read, fd_set* write) const;
 public:
-	MainLoop(TCPServer* _server, EventHandler* _handler);
+	MainLoop(TCPServer* _server, int _seconds);
 	~MainLoop();
 	void Init();
 	void Run();

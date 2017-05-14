@@ -1,23 +1,30 @@
-#ifndef QUEUE_MANAGER_H
-#define QUEUE_MANAGER_H
+#ifndef SERVER_QUEUE_PROCESSOR_H
+#define SERVER_QUEUE_PROCESSOR_H
 
 class MailboxManager;
 
+class SMTPServer;
+
 class QueueManager {
-friend class MessageSaver;
-private:
+	friend class MessageSaver;
+
+	SMTPServer* server;
+
 	int counter;
 	char* path;
 	char* server_name;
 	MailboxManager& mailboxes;
-	void TrySendingMessage();
+
 public:
-	QueueManager(char* _queue_path, char* _server_name, MailboxManager& _manager);
+
+	QueueManager(char* _path, char* _server_name, MailboxManager& _manager);
 	~QueueManager();
 
+	void BindWithServer(SMTPServer* smtp) {server = smtp;};
 	void CreateMailQueueDir();
-	void ProcessMessage(char* id);
-	void GoThroughQueue();
+
+	void ProcessSingleMessage(char* id);
+	void ProcessQueue();
 };
 
 #endif

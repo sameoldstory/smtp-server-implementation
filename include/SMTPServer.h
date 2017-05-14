@@ -4,19 +4,20 @@
 #include "TCPServer.h"
 
 class Configuration;
-class QueueProcessor;
+class QueueManager;
 
 class SMTPServer: public TCPServer
 {
 	Configuration* config;
-	QueueProcessor* queue_processor;
+	QueueManager* queue_manager;
 protected:
 	virtual TCPSession* NewConnection();
 public:
-	SMTPServer(Configuration* _config, QueueProcessor* _queue_processor);
+	SMTPServer(Configuration* _config, QueueManager* _queue_manager);
 	virtual ~SMTPServer();
 
 	virtual void Init();
+	virtual void HandleEvent();
 	void NewClientSession(char* host, char* sender, char* rcpt, int fd);
 };
 

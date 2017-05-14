@@ -3,7 +3,6 @@
 #include "exceptions.h"
 #include "configuration.h"
 #include "TCPServer.h"
-#include "eventHandler.h"
 #include "timeval.h"
 #include <sys/select.h>
 #include <string.h>
@@ -13,12 +12,12 @@
 void MainLoop::SetTimer()
 {
 	gettimeofday(&scheduled, NULL);
-	scheduled.tv_sec += handler->GetTimeout();
+	scheduled.tv_sec += seconds;
 	timeval_subtract_curr_t(&timeout, &scheduled);
 }
 
-MainLoop::MainLoop(TCPServer* _server, EventHandler* _handler):
-	server(_server), handler(_handler)
+MainLoop::MainLoop(TCPServer* _server, int _seconds):
+	server(_server), seconds(_seconds)
 {
 	SetTimer();
 }
@@ -50,7 +49,7 @@ void MainLoop::Init()
 void MainLoop::Run()
 {
 	fd_set readfds, writefds;
-	struct timeval timeout = {handler->GetTimeout(), 0};
+	struct timeval timeout = {seconds, 0};
 	int res;
 
 	for(;;) {
@@ -58,7 +57,7 @@ void MainLoop::Run()
 		PrepareSetsForSelect(&readfds, &writefds);
 
 		if (1 == timeval_subtract_curr_t(&timeout, &scheduled)) {
-			handler->Run();
+			server->HandleEvent();
 			SetTimer();
 		}
 
@@ -69,7 +68,7 @@ void MainLoop::Run()
 		}
 
 		if (res == 0) {
-			handler->Run();
+			server->HandleEvent();
 			SetTimer();
 		}
 

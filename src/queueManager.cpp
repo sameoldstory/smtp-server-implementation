@@ -1,22 +1,24 @@
 #include "queueManager.h"
-#include <sys/stat.h>
 #include <stdio.h>
-#include "exceptions.h"
-#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include "exceptions.h"
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 QueueManager::QueueManager(char* _path, char* _server_name, MailboxManager& _manager):
-	counter(0), path(_path), server_name(_server_name), mailboxes(_manager)
+	counter(0), mailboxes(_manager)
 {
-
+	path = strdup(_path);
+	server_name = strdup(_server_name);
 }
 
 QueueManager::~QueueManager()
 {
 	free(path);
+	free(server_name);
 }
 
 void QueueManager::CreateMailQueueDir()
@@ -32,7 +34,7 @@ void QueueManager::CreateMailQueueDir()
 	}
 }
 
-void QueueManager::ProcessMessage(char* id)
+void QueueManager::ProcessSingleMessage(char* id)
 {
 	// open .env and .msg files
 	char buf[1024];
@@ -54,12 +56,7 @@ void QueueManager::ProcessMessage(char* id)
 	close(msg);
 }
 
-void QueueManager::TrySendingMessage()
-{
-
-}
-
-void QueueManager::GoThroughQueue()
+void QueueManager::ProcessQueue()
 {
 
 }

@@ -91,6 +91,7 @@ TCPSession* TCPServer::ConnectToRemoteHost(char* host)
         return NULL;
 
     TCPSession* s = AddSession(&addr, sock);
+    return s;
 }
 
 void TCPServer::Run(fd_set* readfds, fd_set* writefds)

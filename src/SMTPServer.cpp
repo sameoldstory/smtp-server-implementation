@@ -3,10 +3,10 @@
 #include "configuration.h"
 #include "SMTPServerSession.h"
 #include "SMTPClientSession.h"
-#include "queueProcessor.h"
+#include "queueManager.h"
 
-SMTPServer::SMTPServer(Configuration* _config, QueueProcessor* _queue_processor):
-	TCPServer(_config->GetPort()), config(_config), queue_processor(_queue_processor)
+SMTPServer::SMTPServer(Configuration* _config, QueueManager* _queue_manager):
+	TCPServer(_config->GetPort()), config(_config), queue_manager(_queue_manager)
 {
 
 }
@@ -15,7 +15,7 @@ TCPSession* SMTPServer::NewConnection()
 {
 	TCPSession* tcp = TCPServer::NewConnection();
 	if (tcp) {
-		SMTPServerSession* driver = new SMTPServerSession(queue_processor, BUF_SIZE_SERV, tcp->GetHostname(), tcp->GetIpString());
+		SMTPServerSession* driver = new SMTPServerSession(queue_manager, BUF_SIZE_SERV, tcp->GetHostname(), tcp->GetIpString());
 		tcp->Serve(driver);
 	}
 	return tcp;
@@ -29,10 +29,15 @@ void SMTPServer::NewClientSession(char* host, char* sender, char* rcpt, int fd)
 	tcp->Serve(driver);
 }
 
+void SMTPServer::HandleEvent()
+{
+	queue_manager->ProcessQueue();
+}
+
 void SMTPServer::Init()
 {
 	TCPServer::Init();
-	queue_processor->CreateMailQueueDir();
+	queue_manager->CreateMailQueueDir();
 }
 
 SMTPServer::~SMTPServer()
