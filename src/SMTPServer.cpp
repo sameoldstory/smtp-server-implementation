@@ -4,11 +4,17 @@
 #include "SMTPServerSession.h"
 #include "SMTPClientSession.h"
 #include "queueManager.h"
+#include "exceptions.h"
 
 SMTPServer::SMTPServer(Configuration* _config, QueueManager* _queue_manager):
 	TCPServer(_config->GetPort()), config(_config), queue_manager(_queue_manager)
 {
 
+}
+
+void SMTPServer::QueueManagerIsDead()
+{
+	queue_manager = NULL;
 }
 
 TCPSession* SMTPServer::NewConnection()
@@ -25,7 +31,8 @@ void SMTPServer::NewClientSession(char* host, char* sender, char* rcpt, int fd)
 {
 	TCPSession* tcp = ConnectToRemoteHost(host);
 
-	SMTPClientSession* driver = new SMTPClientSession(BUF_SIZE_SERV, config->GetServerName(), sender, rcpt, fd);
+	SessionArgs* args = new SessionArgs(config->GetServerName(), sender, rcpt);
+	SMTPClientSession* driver = new SMTPClientSession(BUF_SIZE_SERV, args, fd);
 	tcp->Serve(driver);
 }
 
@@ -37,10 +44,15 @@ void SMTPServer::HandleEvent()
 void SMTPServer::Init()
 {
 	TCPServer::Init();
+	if (!queue_manager) {
+		throw FatalException();
+	}
 	queue_manager->CreateMailQueueDir();
 }
 
 SMTPServer::~SMTPServer()
 {
-
+	if (queue_manager) {
+		queue_manager->SMTPServerIsDead();
+	}
 }

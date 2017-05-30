@@ -7,6 +7,8 @@ OBJ_DIR = obj/
 DEPS_DIR = deps/
 EXMPL_DIR = example/
 
+LRESOLV = -lresolv
+
 SRC_MODULES = $(wildcard $(SRC_DIR)*.cpp)
 OBJ_MODULES = $(addprefix $(OBJ_DIR), $(notdir $(SRC_MODULES:.cpp=.o)))
 DEPS_MODULES = $(addprefix $(DEPS_DIR), $(notdir $(SRC_MODULES:.cpp=.d)))
@@ -22,7 +24,7 @@ $(OBJ_DIR)%.o: $(SRC_DIR)%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 smtp: $(EXMPL_DIR)example.cpp $(OBJ_MODULES)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LRESOLV)
 
 ifneq (clean, $(MAKECMDGOALS))
 -include deps.mk

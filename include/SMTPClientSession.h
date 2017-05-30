@@ -18,14 +18,15 @@ struct SessionArgs {
 
 class SMTPClientSession: public SMTPSession {
 	ParseBuffer in_buf;
-	SessionArgs args;
+	SessionArgs* args;
 	int fd;
 	client_state state;
 	char* message;
 	char next_msg[CLIENT_SESSION_BUF_SIZE];
 	void ProcessResponse(char* str);
 public:
-	SMTPClientSession(int buf_size, char* ehlo, char* sender, char* rcpt, int _fd);
+	//SMTPClientSession(int buf_size, char* ehlo, char* sender, char* rcpt, int _fd);
+	SMTPClientSession(int buf_size, SessionArgs* _args, int _fd);
 	char* GetMessage();
 	bool SessionFinished() const;
 	void EndSession();

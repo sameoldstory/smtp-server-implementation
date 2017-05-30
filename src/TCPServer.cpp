@@ -179,6 +179,7 @@ void TCPServer::ProcessSession(TCPSession* & s_ptr, fd_set*readfds, fd_set* writ
             fdsets.ClearWritefds(fd);
         }
         if (s_ptr->NeedsToBeClosed()) {
+            /*
 // TODO: get rid of this block of code when class queueManager is ready
 // here I need to check what kind of driver is hidden inside TcpSession
             SMTPServerSession* tmp_ptr =
@@ -217,8 +218,8 @@ void TCPServer::ProcessSession(TCPSession* & s_ptr, fd_set*readfds, fd_set* writ
 
                 ConnectToRemoteHost(host);
             #endif
-
             }
+               */
             DeleteSession(&s_ptr);
         }
     }

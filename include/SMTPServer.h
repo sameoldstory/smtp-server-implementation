@@ -16,6 +16,8 @@ public:
 	SMTPServer(Configuration* _config, QueueManager* _queue_manager);
 	virtual ~SMTPServer();
 
+	void QueueManagerIsDead();
+
 	virtual void Init();
 	virtual void HandleEvent();
 	void NewClientSession(char* host, char* sender, char* rcpt, int fd);

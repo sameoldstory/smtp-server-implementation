@@ -26,8 +26,8 @@ SessionArgs::SessionArgs(char* _ehlo, char* _sender, char* _rcpt)
 	rcpt = strdup(_rcpt);
 }
 
-SMTPClientSession::SMTPClientSession(int buf_size, char* ehlo, char* sender,
-	char* rcpt, int _fd): SMTPSession(false), in_buf(CLIENT_SESSION_BUF_SIZE), args(ehlo, sender, rcpt), fd(_fd),
+SMTPClientSession::SMTPClientSession(int buf_size, SessionArgs* _args, int _fd):
+	SMTPSession(false), in_buf(CLIENT_SESSION_BUF_SIZE), args(_args), fd(_fd),
  	state(start), message(NULL)
 {
 }
@@ -35,6 +35,8 @@ SMTPClientSession::SMTPClientSession(int buf_size, char* ehlo, char* sender,
 SMTPClientSession::~SMTPClientSession()
 {
 	free(message);
+	delete args;
+	close(fd);
 }
 
 //TODO somewhere in SMTPServerSession I write zero bytes to file, needs fix
@@ -49,15 +51,15 @@ char* SMTPClientSession::GetMessage()
 	case end:
 		throw "SMTPClientSession: should not get here\n";
 	case helo:
-		sprintf(buf, "EHLO %s\r\n", args.ehlo);
+		sprintf(buf, "EHLO %s\r\n", args->ehlo);
 		message = strdup(buf);
 		break;
 	case mail:
-		sprintf(buf, "MAIL FROM:<%s>\r\n", args.mail);
+		sprintf(buf, "MAIL FROM:<%s>\r\n", args->mail);
 		message = strdup(buf);
 		break;
 	case rcpt:
-		sprintf(buf, "RCPT TO:<%s>\r\n", args.rcpt);
+		sprintf(buf, "RCPT TO:<%s>\r\n", args->rcpt);
 		message = strdup(buf);
 		break;
 	case data:
