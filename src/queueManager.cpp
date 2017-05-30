@@ -124,7 +124,7 @@ bool QueueManager::ForwardMessage(char* id, char* str, int fd_msg)
 	memcpy(sender, left, right-left);
 	sender[right-left] = '\0';
 	left = ++right;
-	right = strchr(left, '\0');
+	right = strchr(left, '\n');
 	memcpy(rcpt, left, right-left);
 	rcpt[right-left] = '\0';
 
